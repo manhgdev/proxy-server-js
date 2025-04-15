@@ -294,8 +294,8 @@ Hệ thống Proxy Server sử dụng MongoDB làm cơ sở dữ liệu chính. 
     start: Number,
     end: Number
   },
-  username_format: String, // Format for dynamic username generation
-  password_format: String, // Format for dynamic password generation
+  username: String,
+  password: String,
   is_bandwidth_pool: Boolean,
   active: Boolean,
   created_at: Date,

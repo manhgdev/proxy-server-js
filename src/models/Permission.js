@@ -1,7 +1,12 @@
 import mongoose from 'mongoose';
 
-const roleSchema = new mongoose.Schema({
+const permissionSchema = new mongoose.Schema({
   name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  code: {
     type: String,
     required: true,
     unique: true,
@@ -12,19 +17,10 @@ const roleSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
-  level: {
-    type: Number,
+  group: {
+    type: String,
     required: true,
-    min: 0,
-    max: 10
-  },
-  is_admin: {
-    type: Boolean,
-    default: false
-  },
-  is_reseller: {
-    type: Boolean,
-    default: false
+    trim: true
   },
   created_at: {
     type: Date,
@@ -37,15 +33,15 @@ const roleSchema = new mongoose.Schema({
 }, { versionKey: false });
 
 // Indexes for faster querying
-roleSchema.index({ name: 1 }, { unique: true });
-roleSchema.index({ level: 1 });
+permissionSchema.index({ code: 1 }, { unique: true });
+permissionSchema.index({ group: 1 });
 
 // Update the updated_at field before saving
-roleSchema.pre('save', function(next) {
+permissionSchema.pre('save', function(next) {
   this.updated_at = Date.now();
   next();
 });
 
-const Role = mongoose.model('Role', roleSchema, 'roles');
+const Permission = mongoose.model('Permission', permissionSchema, 'permissions');
 
-export default Role; 
+export default Permission; 

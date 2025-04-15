@@ -3,6 +3,9 @@ import User from '../../models/User.js';
 import config from '../../../config/index.js';
 import { BadRequestError, UnauthorizedError, NotFoundError } from '../../utils/errors.js';
 import logger from '../../utils/logger.js';
+import { validationResult } from 'express-validator';
+import bcrypt from 'bcrypt';
+import Wallet from '../../models/Wallet.js';
 
 /**
  * Đăng nhập
@@ -11,6 +14,11 @@ import logger from '../../utils/logger.js';
  */
 const login = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const { username, password } = req.body;
     
     // Kiểm tra đầu vào
@@ -49,14 +57,9 @@ const login = async (req, res, next) => {
              user.is_reseller ? ['reseller'] : ['customer']
     };
     
-    // Debug thông tin
-    console.log('Generating JWT token for user:', user.username);
-    console.log('JWT Secret in authController:', process.env.JWT_SECRET ? 'exists' : 'missing');
-    console.log('Config JWT Secret in authController:', config.auth.jwt.secret ? 'exists' : 'missing');
-    
-    // Sử dụng trực tiếp biến môi trường thay vì thông qua config
-    const jwtSecret = process.env.JWT_SECRET || 'fallback_jwt_secret_key_for_development';
-    const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret_key_for_development';
+    // Sử dụng config thay vì trực tiếp biến môi trường
+    const jwtSecret = config.auth.jwt.secret;
+    const jwtRefreshSecret = config.auth.jwt.refreshSecret;
     
     // Access token
     const accessToken = jwt.sign(
@@ -107,63 +110,84 @@ const login = async (req, res, next) => {
  */
 const register = async (req, res, next) => {
   try {
-    const { username, email, password, fullname, phone, reseller_code } = req.body;
-    
-    // Kiểm tra đầu vào
-    if (!username || !email || !password || !fullname) {
-      throw new BadRequestError('Username, email, password and fullname are required');
+    // Kiểm tra lỗi validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
-    
-    // Kiểm tra xem username hoặc email đã tồn tại chưa
+
+    const { username, email, password, fullname, phone } = req.body;
+
+    // Kiểm tra username và email đã tồn tại chưa
     const existingUser = await User.findOne({
       $or: [{ username }, { email }]
     });
-    
+
     if (existingUser) {
       if (existingUser.username === username) {
-        throw new BadRequestError('Username already exists');
+        return res.status(400).json({
+          success: false,
+          message: 'Tên đăng nhập đã tồn tại'
+        });
       }
-      throw new BadRequestError('Email already exists');
-    }
-    
-    // Tìm reseller nếu có reseller_code
-    let parentId = null;
-    if (reseller_code) {
-      const reseller = await User.findOne({ 
-        username: reseller_code,
-        user_level: 2 // Reseller
-      });
-      
-      if (reseller) {
-        parentId = reseller._id;
+      if (existingUser.email === email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email đã được sử dụng'
+        });
       }
     }
-    
-    // Tạo user mới
+
+    // Tạo người dùng mới
     const newUser = new User({
       username,
-      password_hash: password, // Sẽ được hash tự động bởi middleware
       email,
+      password_hash: password, // Sẽ được hash trong middleware
       fullname,
-      phone: phone || '',
-      parent_id: parentId,
+      phone,
       user_level: 3, // Customer
-      api_key: new User().generateApiKey()
+      is_admin: false,
+      is_reseller: false,
+      active: true,
+      created_at: Date.now()
     });
-    
-    // Lưu user
+
     await newUser.save();
+
+    // Tạo ví cho người dùng mới
+    const wallet = await Wallet.findOrCreate(newUser._id);
     
-    // TODO: Tạo wallet cho user
-    
-    // Response
-    res.status(201).json({
-      status: 'success',
+    // Cập nhật wallet_id cho user
+    newUser.wallet_id = wallet._id;
+    await newUser.save();
+
+    // Tạo token
+    const accessToken = jwt.sign(
+      { id: newUser._id, username: newUser.username },
+      config.auth.jwt.secret,
+      { expiresIn: config.auth.jwt.expiresIn }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: newUser._id, username: newUser.username },
+      config.auth.jwt.refreshSecret,
+      { expiresIn: config.auth.jwt.refreshExpiresIn }
+    );
+
+    // Trả về thông tin người dùng và token
+    return res.status(201).json({
+      success: true,
       message: 'Đăng ký thành công',
       data: {
-        user_id: newUser._id,
-        username: newUser.username,
-        api_key: newUser.api_key
+        user: {
+          id: newUser._id,
+          username: newUser.username,
+          email: newUser.email,
+          fullname: newUser.fullname,
+          user_level: newUser.user_level
+        },
+        access_token: accessToken,
+        refresh_token: refreshToken
       }
     });
   } catch (error) {
@@ -185,8 +209,8 @@ const refreshToken = async (req, res, next) => {
       throw new BadRequestError('Refresh token is required');
     }
     
-    // Sử dụng trực tiếp biến môi trường
-    const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret_key_for_development';
+    // Sử dụng config thay vì biến môi trường
+    const jwtRefreshSecret = config.auth.jwt.refreshSecret;
     
     // Verify refresh token
     let decoded;
@@ -251,13 +275,16 @@ const refreshToken = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
-    // Lấy user ID từ token
-    const userId = req.user.id;
-    
-    // Tìm và xóa access token
-    await User.findByIdAndUpdate(userId, { access_token: null });
-    
-    res.status(200).json({
+    // Nếu đã authenticate, xóa token
+    if (req.user) {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        user.access_token = null;
+        await user.save();
+      }
+    }
+
+    return res.status(200).json({
       status: 'success',
       message: 'Đăng xuất thành công'
     });
@@ -267,9 +294,132 @@ const logout = async (req, res, next) => {
   }
 };
 
+/**
+ * Lấy thông tin người dùng hiện tại
+ * @route GET /api/v1/auth/me
+ * @access Private
+ */
+const me = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    
+    const user = await User.findById(userId).select('-password_hash -access_token');
+    
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    
+    // Lấy thông tin ví
+    const wallet = await Wallet.findOne({ user_id: userId });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          fullname: user.fullname,
+          phone: user.phone,
+          user_level: user.user_level,
+          created_at: user.created_at,
+          wallet: wallet ? {
+            balance: wallet.balance,
+            currency: wallet.currency
+          } : null
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Get user profile error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Đổi mật khẩu
+ * @route POST /api/v1/auth/change-password
+ * @access Private
+ */
+const changePassword = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+    
+    const { current_password, new_password } = req.body;
+    const userId = req.user.id;
+    
+    // Lấy thông tin người dùng
+    const user = await User.findById(userId).select('+password_hash');
+    
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    
+    // Kiểm tra mật khẩu hiện tại
+    const isMatch = await user.comparePassword(current_password);
+    
+    if (!isMatch) {
+      throw new BadRequestError('Current password is incorrect');
+    }
+    
+    // Cập nhật mật khẩu mới
+    user.password_hash = new_password;
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    logger.error('Change password error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Tạo API key
+ * @route POST /api/v1/auth/generate-api-key
+ * @access Private
+ */
+const generateApiKey = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    
+    // Lấy thông tin người dùng
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    
+    // Tạo API key mới
+    const apiKey = user.generateApiKey();
+    user.api_key = apiKey;
+    
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'API key generated successfully',
+      data: {
+        api_key: apiKey
+      }
+    });
+  } catch (error) {
+    logger.error('Generate API key error:', error);
+    next(error);
+  }
+};
+
 export {
   login,
   register,
   refreshToken,
-  logout
+  logout,
+  me,
+  changePassword,
+  generateApiKey
 }; 

@@ -1,8 +1,8 @@
 const authConfig = {
   jwt: {
-    secret: process.env.JWT_SECRET,
+    secret: process.env.JWT_SECRET || 'fallback_jwt_secret_key_for_development',
     expiresIn: process.env.JWT_EXPIRE || '24h',
-    refreshSecret: process.env.JWT_REFRESH_SECRET,
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'fallback_refresh_jwt_secret_key_for_development',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRE || '7d',
     algorithm: 'HS256'
   },

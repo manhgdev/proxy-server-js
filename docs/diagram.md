@@ -80,8 +80,8 @@
 │  │ duration_days     │      │ country           │      │ active_proxy_count│                                                         │
 │  │ price             │      │ city              │      │ entry_point       │                                                         │
 │  │ price_tiers       │      │ region            │      │ port_range        │                                                         │
-│  │ allowed_countries │      │ isp               │      │ username_format   │                                                         │
-│  │ allowed_isps      │      │ status            │      │ password_format   │                                                         │
+│  │ allowed_countries │      │ isp               │      │ username          │                                                         │
+│  │ allowed_isps      │      │ status            │      │ password          │                                                         │
 │  │ features          │      │ sold              │      │ is_bandwidth_pool │                                                         │
 │  │ active            │      │ assigned          │      │ active            │                                                         │
 │  │ created_at        │      │ created_at        │      │ created_at        │                                                         │

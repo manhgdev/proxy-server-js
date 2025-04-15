@@ -51,7 +51,7 @@ import authRoutes from './api/auth/authRoutes.js';
 import userRoutes from './api/users/userRoutes.js';
 import packageRoutes from './api/packages/packageRoutes.js';
 import orderRoutes from './api/orders/orderRoutes.js';
-import proxyRoutes from './api/proxies/proxyRoutes.js';
+import proxyRoutes from './api/proxy/proxyRoutes.js';
 import walletRoutes from './api/wallet/walletRoutes.js';
 import planRoutes from './api/plans/planRoutes.js';
 import adminRoutes from './api/admin/adminRoutes.js';
