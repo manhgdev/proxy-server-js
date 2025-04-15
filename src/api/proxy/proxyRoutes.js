@@ -1,8 +1,8 @@
 import express from 'express';
-import { body, query, param } from 'express-validator';
-import { authenticate } from '../../middlewares/auth.js';
+import { authenticateCombined, checkResourceAccess, authorize } from '../../middlewares/auth.js';
+import { body, param, query } from 'express-validator';
 import {
-  getUserProxies,
+  getUserProxies as getProxies,
   getProxyById,
   rotateProxy,
   checkProxyStatus,
@@ -11,58 +11,60 @@ import {
 
 const router = express.Router();
 
-// Tất cả các routes cần xác thực
-router.use(authenticate);
-
-// Lấy danh sách proxy của người dùng
+// Get all proxies
 router.get(
   '/',
+  authenticateCombined,
   [
-    query('page').optional().isInt({ min: 1 }).toInt(),
-    query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
-    query('status').optional().isIn(['active', 'inactive', 'expired']),
-    query('type').optional().isIn(['datacenter', 'residential', 'mobile', 'rotating'])
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString().isIn(['active', 'inactive', 'expired']).withMessage('Invalid status'),
+    query('type').optional().isString().isIn(['static', 'rotating', 'bandwidth']).withMessage('Invalid type'),
+    query('country').optional().isString(),
+    query('sort').optional().isString()
   ],
-  getUserProxies
+  getProxies
 );
 
-// Lấy chi tiết proxy theo ID
+// Get proxy by ID
 router.get(
   '/:id',
-  [
-    param('id').isMongoId().withMessage('ID proxy không hợp lệ')
-  ],
+  authenticateCombined,
+  checkResourceAccess,
+  param('id').isMongoId().withMessage('Invalid proxy ID format'),
   getProxyById
 );
 
-// Xoay proxy (đối với proxy quay vòng)
+// Rotate proxy
 router.post(
   '/:id/rotate',
-  [
-    param('id').isMongoId().withMessage('ID proxy không hợp lệ')
-  ],
+  authenticateCombined,
+  checkResourceAccess,
+  param('id').isMongoId().withMessage('Invalid proxy ID format'),
   rotateProxy
 );
 
-// Kiểm tra trạng thái proxy
+// Check proxy status
 router.get(
   '/:id/status',
-  [
-    param('id').isMongoId().withMessage('ID proxy không hợp lệ')
-  ],
+  authenticateCombined,
+  checkResourceAccess,
+  param('id').isMongoId().withMessage('Invalid proxy ID format'),
   checkProxyStatus
 );
 
-// Cập nhật tùy chỉnh proxy
+// Update proxy settings
 router.patch(
   '/:id/settings',
+  authenticateCombined,
+  checkResourceAccess,
+  param('id').isMongoId().withMessage('Invalid proxy ID format'),
   [
-    param('id').isMongoId().withMessage('ID proxy không hợp lệ'),
-    body('username').optional().isString().trim(),
-    body('password').optional().isString().trim(),
-    body('rotation_interval').optional().isInt({ min: 0 }).toInt(),
-    body('sticky_session').optional().isBoolean().toBoolean(),
-    body('notes').optional().isString().trim()
+    body('username').optional().isString(),
+    body('password').optional().isString(),
+    body('rotation_interval').optional().isInt({ min: 0 }).withMessage('Rotation interval must be non-negative'),
+    body('sticky_session').optional().isBoolean(),
+    body('notes').optional().isString().isLength({ max: 500 }).withMessage('Notes cannot exceed 500 characters')
   ],
   updateProxySettings
 );

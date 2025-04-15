@@ -2,52 +2,72 @@ import express from 'express';
 import { body, param, query } from 'express-validator';
 import {
   getAllPlans,
-  getPlanById,
   getMyPlans,
+  getResellerPlans,
+  getPlanById,
   toggleAutoRenew,
   cancelPlan,
-  renewPlan,
-  getResellerPlans
+  renewPlan
 } from './planController.js';
-import { authenticate, authorize } from '../../middlewares/auth.js';
+import { authenticateCombined, checkResourceAccess, authorize } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
-// Get all plans (admin only)
+// Get all plans (Admin only)
 router.get(
   '/',
-  authenticate,
-  authorize('manage_proxies', 'view_proxies'),
+  authenticateCombined,
+  authorize(['manage_orders', 'view_orders']),
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString().isIn(['active', 'expired', 'cancelled']).withMessage('Invalid status'),
+    query('sort').optional().isString()
+  ],
   getAllPlans
 );
 
-// Get my plans
+// Get my plans - Đặt route này trước các route có tham số
 router.get(
-  '/my',
-  authenticate,
+  '/user-plans',
+  authenticateCombined,
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString().isIn(['active', 'expired', 'cancelled']).withMessage('Invalid status'),
+    query('sort').optional().isString()
+  ],
   getMyPlans
 );
 
-// Get reseller's customers plans
+// Get reseller plans
 router.get(
   '/reseller',
-  authenticate,
-  authorize('view_proxies'),
+  authenticateCombined,
+  authorize('reseller'),
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString().isIn(['active', 'expired', 'cancelled']).withMessage('Invalid status'),
+    query('sort').optional().isString()
+  ],
   getResellerPlans
 );
 
 // Get plan by ID
 router.get(
   '/:id',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid plan ID format'),
   getPlanById
 );
 
-// Toggle auto-renew for a plan
+// Toggle auto-renew
 router.post(
   '/:id/toggle-auto-renew',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid plan ID format'),
   toggleAutoRenew
 );
@@ -55,7 +75,8 @@ router.post(
 // Cancel plan
 router.post(
   '/:id/cancel',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid plan ID format'),
   cancelPlan
 );
@@ -63,7 +84,8 @@ router.post(
 // Renew plan
 router.post(
   '/:id/renew',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid plan ID format'),
   renewPlan
 );

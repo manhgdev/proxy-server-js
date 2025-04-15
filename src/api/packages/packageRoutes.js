@@ -1,5 +1,5 @@
 import express from 'express';
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import {
   getAllPackages,
   getPackageById,
@@ -8,18 +8,24 @@ import {
   deletePackage,
   getActivePackages
 } from './packageController.js';
-import { authenticate, authorize } from '../../middlewares/auth.js';
+import { authenticateCombined, authorize } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
-// Get all packages (admin & reseller)
+// Get all packages
 router.get(
   '/',
-  authenticate,
+  authenticateCombined,
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('category').optional().isString(),
+    query('type').optional().isString()
+  ],
   getAllPackages
 );
 
-// Get active packages (for public listing)
+// Get active packages (public)
 router.get(
   '/active',
   getActivePackages
@@ -28,58 +34,66 @@ router.get(
 // Get package by ID
 router.get(
   '/:id',
-  authenticate,
+  authenticateCombined,
   param('id').isMongoId().withMessage('Invalid package ID format'),
   getPackageById
 );
 
-// Create new package (admin only)
+// Create package (Admin only)
 router.post(
   '/',
-  authenticate,
+  authenticateCombined,
   authorize('manage_proxies'),
   [
-    body('name').isString().notEmpty().withMessage('Package name is required'),
-    body('description').isString().withMessage('Description must be a string'),
-    body('type').isString().isIn(['static', 'rotating', 'bandwidth']).withMessage('Type must be static, rotating, or bandwidth'),
-    body('category').isString().isIn(['datacenter', 'residential', 'mobile']).withMessage('Category must be datacenter, residential, or mobile'),
-    body('protocol').isString().isIn(['http', 'https', 'socks5']).withMessage('Protocol must be http, https, or socks5'),
-    body('is_rotating').isBoolean().withMessage('is_rotating must be a boolean'),
-    body('is_bandwidth').isBoolean().withMessage('is_bandwidth must be a boolean'),
-    body('duration_days').isInt({ min: 1 }).withMessage('Duration must be at least 1 day'),
+    body('name').isString().withMessage('Name is required'),
+    body('description').isString().withMessage('Description is required'),
+    body('type').isString().isIn(['static', 'rotating', 'bandwidth']).withMessage('Invalid package type'),
+    body('category').isString().isIn(['residential', 'datacenter', 'mobile', 'isp']).withMessage('Invalid package category'),
+    body('protocol').isString().isIn(['http', 'https', 'socks5']).withMessage('Invalid protocol'),
+    body('is_rotating').isBoolean().withMessage('is_rotating flag is required'),
+    body('is_bandwidth').isBoolean().withMessage('is_bandwidth flag is required'),
+    body('duration_days').isInt({ min: 1 }).withMessage('Duration days must be a positive integer'),
     body('price').isNumeric().withMessage('Price must be a number'),
     body('price_tiers').isArray().withMessage('Price tiers must be an array'),
-    body('allowed_countries').isArray().withMessage('Allowed countries must be an array'),
-    body('allowed_isps').isArray().withMessage('Allowed ISPs must be an array'),
-    body('features').isArray().withMessage('Features must be an array'),
-    body('active').isBoolean().withMessage('active must be a boolean')
+    body('price_tiers.*.min_quantity').isInt({ min: 1 }).withMessage('Min quantity must be a positive integer'),
+    body('price_tiers.*.price_per_unit').isNumeric().withMessage('Price per unit must be a number'),
+    body('allowed_countries').optional().isArray().withMessage('Allowed countries must be an array'),
+    body('allowed_isps').optional().isArray().withMessage('Allowed ISPs must be an array'),
+    body('features').optional().isArray().withMessage('Features must be an array'),
+    body('min_quantity').optional().isInt({ min: 1 }).withMessage('Min quantity must be a positive integer'),
+    body('max_quantity').optional().isInt({ min: 1 }).withMessage('Max quantity must be a positive integer'),
+    body('bandwidth_gb').optional().isNumeric().withMessage('Bandwidth GB must be a number'),
+    body('bandwidth_price_per_gb').optional().isNumeric().withMessage('Bandwidth price per GB must be a number'),
+    body('active').isBoolean().withMessage('Active flag is required')
   ],
   createPackage
 );
 
-// Update package (admin only)
+// Update package (Admin only)
 router.put(
   '/:id',
-  authenticate,
+  authenticateCombined,
   authorize('manage_proxies'),
   param('id').isMongoId().withMessage('Invalid package ID format'),
   [
-    body('name').optional().isString().notEmpty().withMessage('Package name is required'),
-    body('description').optional().isString().withMessage('Description must be a string'),
+    body('name').optional().isString(),
+    body('description').optional().isString(),
     body('price').optional().isNumeric().withMessage('Price must be a number'),
     body('price_tiers').optional().isArray().withMessage('Price tiers must be an array'),
-    body('allowed_countries').optional().isArray().withMessage('Allowed countries must be an array'),
-    body('allowed_isps').optional().isArray().withMessage('Allowed ISPs must be an array'),
-    body('features').optional().isArray().withMessage('Features must be an array'),
-    body('active').optional().isBoolean().withMessage('active must be a boolean')
+    body('price_tiers.*.min_quantity').optional().isInt({ min: 1 }).withMessage('Min quantity must be a positive integer'),
+    body('price_tiers.*.price_per_unit').optional().isNumeric().withMessage('Price per unit must be a number'),
+    body('allowed_countries').optional().isArray(),
+    body('allowed_isps').optional().isArray(),
+    body('features').optional().isArray(),
+    body('active').optional().isBoolean()
   ],
   updatePackage
 );
 
-// Delete package (admin only)
+// Delete package (Admin only)
 router.delete(
   '/:id',
-  authenticate,
+  authenticateCombined,
   authorize('manage_proxies'),
   param('id').isMongoId().withMessage('Invalid package ID format'),
   deletePackage

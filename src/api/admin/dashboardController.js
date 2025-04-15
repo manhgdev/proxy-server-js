@@ -2,7 +2,7 @@ import User from '../../models/User.js';
 import Order from '../../models/Order.js';
 import Proxy from '../../models/Proxy.js';
 import Wallet from '../../models/Wallet.js';
-import Transaction from '../../models/Transaction.js';
+import WalletTransaction from '../../models/WalletTransaction.js';
 import ProductPackage from '../../models/ProductPackage.js';
 
 /**
@@ -20,54 +20,114 @@ export const getDashboardSummary = async (req, res, next) => {
     const resellerCount = await User.countDocuments({ user_level: 2 });
     const customerCount = await User.countDocuments({ user_level: 3 });
     
+    // Lấy số lượng đơn hàng
+    const orderCount = await Order.countDocuments();
+    const completedOrderCount = await Order.countDocuments({ status: 'completed' });
+    const pendingOrderCount = await Order.countDocuments({ status: 'pending' });
+    
     // Lấy số lượng proxy
     const proxyCount = await Proxy.countDocuments();
     const activeProxyCount = await Proxy.countDocuments({ status: 'active' });
     
-    // Lấy số lượng đơn hàng
-    const orderCount = await Order.countDocuments();
-    const pendingOrderCount = await Order.countDocuments({ status: 'pending' });
-    const completedOrderCount = await Order.countDocuments({ status: 'completed' });
-    
-    // Lấy số lượng gói dịch vụ
+    // Lấy số lượng gói sản phẩm
     const packageCount = await ProductPackage.countDocuments();
     
-    // Tính tổng doanh thu
-    const totalRevenue = await Transaction.aggregate([
-      { $match: { type: 'deposit' } },
+    // Lấy doanh thu
+    const totalRevenue = await WalletTransaction.aggregate([
+      { $match: { type: 'order_payment', status: 'completed' } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
     
-    // Tính doanh thu trong tháng hiện tại
+    const monthlyRevenue = await WalletTransaction.aggregate([
+      { 
+        $match: { 
+          type: 'order_payment', 
+          status: 'completed',
+          created_at: { $gte: new Date(new Date().setDate(1)) } // Từ đầu tháng hiện tại
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    
+    const weeklyRevenue = await WalletTransaction.aggregate([
+      { 
+        $match: { 
+          type: 'order_payment', 
+          status: 'completed',
+          created_at: { $gte: new Date(new Date().setDate(new Date().getDate() - 7)) } // 7 ngày qua
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    
+    const dailyRevenue = await WalletTransaction.aggregate([
+      { 
+        $match: { 
+          type: 'order_payment', 
+          status: 'completed',
+          created_at: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) } // Hôm nay
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    
+    // Lấy doanh thu theo ngày cho chart
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthlyRevenue = await Transaction.aggregate([
+    
+    // Format ngày
+    const formatDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    // Lấy doanh thu theo ngày
+    const dailyRevenueByDate = await WalletTransaction.aggregate([
       { 
         $match: { 
-          type: 'deposit',
-          created_at: { $gte: firstDayOfMonth } 
+          type: 'order_payment',
+          status: 'completed',
+          created_at: { 
+            $gte: firstDayOfMonth,
+            $lte: now
+          } 
         } 
       },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    
-    // Tính doanh thu trong 7 ngày gần nhất
-    const last7Days = new Date(now);
-    last7Days.setDate(now.getDate() - 7);
-    
-    const weeklyRevenue = await Transaction.aggregate([
       { 
-        $match: { 
-          type: 'deposit',
-          created_at: { $gte: last7Days } 
+        $group: { 
+          _id: { 
+            $dateToString: { format: '%Y-%m-%d', date: '$created_at' } 
+          }, 
+          total: { $sum: '$amount' } 
         } 
       },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $sort: { _id: 1 } }
     ]);
+    
+    // Lấy dữ liệu cho biểu đồ
+    const chartDays = 30;
+    const chartData = [];
+    
+    // Lấy dữ liệu doanh thu theo ngày trong 30 ngày gần nhất
+    for (let i = chartDays - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateString = formatDate(date);
+      
+      // Tìm dữ liệu doanh thu cho ngày này
+      const dayRevenue = dailyRevenueByDate.find(item => item._id === dateString);
+      
+      chartData.push({
+        date: dateString,
+        revenue: dayRevenue ? dayRevenue.total : 0
+      });
+    }
     
     // Trả về dữ liệu
-    return res.status(200).json({
-      success: true,
+    res.status(200).json({
+      status: 'success',
       data: {
         users: {
           total: userCount,
@@ -75,25 +135,42 @@ export const getDashboardSummary = async (req, res, next) => {
           resellers: resellerCount,
           customers: customerCount
         },
+        orders: {
+          total: orderCount,
+          completed: completedOrderCount,
+          pending: pendingOrderCount
+        },
         proxies: {
           total: proxyCount,
           active: activeProxyCount
         },
-        orders: {
-          total: orderCount,
-          pending: pendingOrderCount,
-          completed: completedOrderCount
-        },
         packages: packageCount,
         revenue: {
-          total: totalRevenue.length > 0 ? totalRevenue[0].total : 0,
-          monthly: monthlyRevenue.length > 0 ? monthlyRevenue[0].total : 0,
-          weekly: weeklyRevenue.length > 0 ? weeklyRevenue[0].total : 0
+          total: totalRevenue.length ? totalRevenue[0].total : 0,
+          monthly: monthlyRevenue.length ? monthlyRevenue[0].total : 0,
+          weekly: weeklyRevenue.length ? weeklyRevenue[0].total : 0,
+          daily: dailyRevenue.length ? dailyRevenue[0].total : 0
+        },
+        chart: {
+          revenue: chartData
         }
       }
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
+    next(error);
+  }
+};
+
+/**
+ * Lấy thông tin chi tiết doanh thu
+ * @route GET /api/v1/admin/dashboard/revenue
+ * @access Admin
+ */
+export const getDashboardRevenue = async (req, res, next) => {
+  try {
+    // Xử lý logic lấy thông tin chi tiết doanh thu
+  } catch (error) {
     next(error);
   }
 };
@@ -110,10 +187,10 @@ export const getRevenueChart = async (req, res, next) => {
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     
     // Lấy doanh thu theo ngày
-    const dailyRevenue = await Transaction.aggregate([
+    const dailyRevenueByDate = await WalletTransaction.aggregate([
       { 
         $match: { 
-          type: 'deposit',
+          type: 'order_payment',
           created_at: { 
             $gte: firstDayOfMonth,
             $lte: lastDayOfMonth
@@ -140,7 +217,7 @@ export const getRevenueChart = async (req, res, next) => {
       const dateString = date.toISOString().split('T')[0];
       
       // Tìm dữ liệu doanh thu cho ngày này
-      const dayRevenue = dailyRevenue.find(item => item._id === dateString);
+      const dayRevenue = dailyRevenueByDate.find(item => item._id === dateString);
       
       chartData.push({
         date: dateString,

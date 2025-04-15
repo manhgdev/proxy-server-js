@@ -8,21 +8,22 @@ import {
   getUserWallet,
   getWalletStats
 } from './walletController.js';
-import { authenticate, authorize } from '../../middlewares/auth.js';
+import { authenticateCombined, checkResourceAccess, authorize } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
 // Get my wallet info
 router.get(
   '/me',
-  authenticate,
+  authenticateCombined,
   getWalletInfo
 );
 
 // Get user wallet (admin only)
 router.get(
   '/user/:userId',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   authorize('manage_finances'),
   param('userId').isMongoId().withMessage('Invalid user ID format'),
   getUserWallet
@@ -31,7 +32,7 @@ router.get(
 // Get my transactions
 router.get(
   '/transactions',
-  authenticate,
+  authenticateCombined,
   [
     query('start_date').optional().isISO8601().withMessage('Start date must be a valid ISO date'),
     query('end_date').optional().isISO8601().withMessage('End date must be a valid ISO date'),
@@ -43,7 +44,7 @@ router.get(
 // Request deposit
 router.post(
   '/deposit',
-  authenticate,
+  authenticateCombined,
   [
     body('amount').isNumeric().withMessage('Amount must be a number').isFloat({ min: 10000 }).withMessage('Minimum deposit amount is 10,000'),
     body('payment_method').isString().isIn(['bank_transfer', 'credit_card', 'crypto']).withMessage('Invalid payment method')
@@ -54,7 +55,7 @@ router.post(
 // Request withdrawal
 router.post(
   '/withdraw',
-  authenticate,
+  authenticateCombined,
   [
     body('amount').isNumeric().withMessage('Amount must be a number').isFloat({ min: 50000 }).withMessage('Minimum withdrawal amount is 50,000'),
     body('payment_details').isObject().withMessage('Payment details must be an object'),
@@ -69,7 +70,7 @@ router.post(
 // Get wallet stats (admin only)
 router.get(
   '/stats',
-  authenticate,
+  authenticateCombined,
   authorize('manage_finances'),
   getWalletStats
 );

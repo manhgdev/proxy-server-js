@@ -1,44 +1,57 @@
 import express from 'express';
-import { param } from 'express-validator';
+import { param, query } from 'express-validator';
 import {
-  getUserAlerts,
+  getAlerts,
   markAlertAsRead,
   markAllAlertsAsRead,
   deleteAlert,
   deleteAllAlerts
 } from './alertsController.js';
-import { authenticate } from '../../middlewares/auth.js';
+import { authenticateCombined } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
-// Tất cả routes đều yêu cầu authentication
-router.use(authenticate);
+// Get all alerts for user
+router.get(
+  '/',
+  authenticateCombined,
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('read').optional().isBoolean().withMessage('Read status must be a boolean'),
+    query('type').optional().isString()
+  ],
+  getAlerts
+);
 
-// Lấy thông báo của người dùng
-router.get('/', getUserAlerts);
-
-// Đánh dấu thông báo đã đọc
+// Mark alert as read
 router.patch(
   '/:id/read',
-  [
-    param('id').isMongoId().withMessage('ID thông báo không hợp lệ')
-  ],
+  authenticateCombined,
+  param('id').isMongoId().withMessage('Invalid alert ID format'),
   markAlertAsRead
 );
 
-// Đánh dấu tất cả thông báo là đã đọc
-router.patch('/read-all', markAllAlertsAsRead);
+// Mark all alerts as read
+router.patch(
+  '/read-all',
+  authenticateCombined,
+  markAllAlertsAsRead
+);
 
-// Xóa một thông báo
+// Delete an alert
 router.delete(
   '/:id',
-  [
-    param('id').isMongoId().withMessage('ID thông báo không hợp lệ')
-  ],
+  authenticateCombined,
+  param('id').isMongoId().withMessage('Invalid alert ID format'),
   deleteAlert
 );
 
-// Xóa tất cả thông báo
-router.delete('/delete-all', deleteAllAlerts);
+// Delete all alerts
+router.delete(
+  '/delete-all',
+  authenticateCombined,
+  deleteAllAlerts
+);
 
 export default router; 

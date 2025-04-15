@@ -1,15 +1,16 @@
 import express from 'express';
-import { body } from 'express-validator';
+import { body, query } from 'express-validator';
 import {
   register,
   login,
-  refreshToken,
   logout,
+  refreshToken,
   me,
   changePassword,
   generateApiKey
 } from './authController.js';
-import { authenticate } from '../../middlewares/auth.js';
+import { authenticateCombined } from '../../middlewares/auth.js';
+import { validationResult } from 'express-validator';
 
 const router = express.Router();
 
@@ -65,15 +66,15 @@ router.post(
 );
 
 // Đăng xuất
-router.post('/logout', authenticate, logout);
+router.post('/logout', authenticateCombined, logout);
 
 // Lấy thông tin người dùng hiện tại
-router.get('/me', authenticate, me);
+router.get('/me', authenticateCombined, me);
 
 // Đổi mật khẩu
 router.post(
   '/change-password',
-  authenticate,
+  authenticateCombined,
   [
     body('current_password')
       .isString()
@@ -87,7 +88,80 @@ router.post(
   changePassword
 );
 
+// Quên mật khẩu
+router.post(
+  '/forgot-password',
+  [
+    body('email')
+      .isEmail()
+      .withMessage('Valid email is required')
+      .normalizeEmail()
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ status: 'error', errors: errors.array() });
+    }
+    
+    // Trả về response giả lập
+    res.status(200).json({
+      status: 'success',
+      message: 'Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.'
+    });
+  }
+);
+
+// Đặt lại mật khẩu
+router.post(
+  '/reset-password',
+  [
+    body('token')
+      .isString()
+      .withMessage('Token is required'),
+    body('password')
+      .isString()
+      .isLength({ min: 6 })
+      .withMessage('New password must be at least 6 characters')
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ status: 'error', errors: errors.array() });
+    }
+    
+    // Trả về response giả lập
+    res.status(200).json({
+      status: 'success',
+      message: 'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập với mật khẩu mới.'
+    });
+  }
+);
+
+// Validate reset token
+router.get(
+  '/validate-reset-token',
+  [
+    query('token')
+      .isString()
+      .withMessage('Token is required')
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ status: 'error', errors: errors.array() });
+    }
+    
+    // Trả về response giả lập
+    res.status(200).json({
+      status: 'success',
+      data: {
+        valid: true
+      }
+    });
+  }
+);
+
 // Tạo API key
-router.post('/generate-api-key', authenticate, generateApiKey);
+router.post('/generate-api-key', authenticateCombined, generateApiKey);
 
 export default router; 

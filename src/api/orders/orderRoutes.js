@@ -1,53 +1,75 @@
 import express from 'express';
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import {
-  getAllOrders,
+  getAllOrders as getOrders,
   getOrderById,
-  createOrder,
   getMyOrders,
+  getResellerOrders,
+  createOrder,
   cancelOrder,
-  getOrderItems,
-  getResellerOrders
+  getOrderItems
 } from './orderController.js';
-import { authenticate, authorize } from '../../middlewares/auth.js';
+import { authenticateCombined, checkResourceAccess, authorize } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
-// Get all orders (admin only)
+// Get all orders (Admin only)
 router.get(
   '/',
-  authenticate,
-  authorize('manage_orders', 'view_orders'),
-  getAllOrders
+  authenticateCombined,
+  authorize(['manage_orders', 'view_orders']),
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString(),
+    query('sort').optional().isString(),
+    query('from').optional().isISO8601().withMessage('From date must be in ISO format'),
+    query('to').optional().isISO8601().withMessage('To date must be in ISO format')
+  ],
+  getOrders
 );
 
 // Get my orders
 router.get(
   '/my',
-  authenticate,
+  authenticateCombined,
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString(),
+    query('sort').optional().isString()
+  ],
   getMyOrders
 );
 
-// Get orders for a reseller
+// Get reseller orders
 router.get(
   '/reseller',
-  authenticate,
-  authorize('view_orders'),
+  authenticateCombined,
+  authorize('reseller'),
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
+    query('status').optional().isString(),
+    query('sort').optional().isString()
+  ],
   getResellerOrders
 );
 
 // Get order by ID
 router.get(
   '/:id',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid order ID format'),
   getOrderById
 );
 
-// Get order items for an order
+// Get order items
 router.get(
   '/:id/items',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid order ID format'),
   getOrderItems
 );
@@ -55,13 +77,15 @@ router.get(
 // Create new order
 router.post(
   '/',
-  authenticate,
+  authenticateCombined,
   [
     body('items').isArray().withMessage('Items must be an array'),
     body('items.*.package_id').isMongoId().withMessage('Invalid package ID format'),
-    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-    body('items.*.custom_config').optional().isObject().withMessage('Custom config must be an object'),
-    body('payment_method').isString().isIn(['wallet', 'credit_card', 'bank_transfer', 'crypto']).withMessage('Invalid payment method')
+    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
+    body('items.*.custom_config').optional().isObject(),
+    body('payment_method').isString().isIn(['wallet', 'credit_card', 'crypto']).withMessage('Invalid payment method'),
+    body('discount_code').optional().isString(),
+    body('customer_notes').optional().isString().isLength({ max: 1000 }).withMessage('Notes cannot exceed 1000 characters')
   ],
   createOrder
 );
@@ -69,7 +93,8 @@ router.post(
 // Cancel order
 router.post(
   '/:id/cancel',
-  authenticate,
+  authenticateCombined,
+  checkResourceAccess,
   param('id').isMongoId().withMessage('Invalid order ID format'),
   cancelOrder
 );

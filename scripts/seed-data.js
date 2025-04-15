@@ -247,10 +247,10 @@ const seedRolePermissions = async (db) => {
 // Seed admin user
 const seedAdminUser = async (db) => {
   try {
-    const passwordHash = await bcrypt.hash('admin_initial_password', 10);
+    const passwordHash = await bcrypt.hash('manhdz', 10);
     
     const adminUser = {
-      username: "admin",
+      username: "manhgdev",
       password_hash: passwordHash,
       email: "admin@proxy-server.com",
       fullname: "System Administrator",
@@ -329,6 +329,7 @@ const seedProxies = async (db) => {
       assigned: false,
       current_user_id: null,
       last_user_id: null,
+      host: "proxy-dc.example.com",
       health_status: {
         last_check: new Date(),
         response_time: 80,
@@ -357,6 +358,7 @@ const seedProxies = async (db) => {
       assigned: false,
       current_user_id: null,
       last_user_id: null,
+      host: "proxy-res.example.com",
       health_status: {
         last_check: new Date(),
         response_time: 120,

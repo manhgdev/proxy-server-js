@@ -238,7 +238,7 @@ const requestDeposit = async (req, res, next) => {
           bank_name: 'VPBank',
           account_number: '1234567890',
           account_name: 'Proxy Server JSC',
-          reference: `DEP-${userId.substring(0, 6)}`
+          reference: `DEP-${userId.toString().substring(0, 6)}`
         };
         break;
       case 'credit_card':

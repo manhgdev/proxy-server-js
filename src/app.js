@@ -11,6 +11,8 @@ dotenv.config();
 import config from '../config/index.js';
 import logger from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import { getUserPlans } from './api/users/userPlansController.js';
+import { authenticateCombined } from './middlewares/auth.js';
 
 // Create Express app
 const app = express();

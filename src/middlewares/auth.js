@@ -8,9 +8,9 @@ import config from '../../config/index.js';
 import logger from '../utils/logger.js';
 
 /**
- * Middleware xác thực người dùng qua JWT
+ * Middleware xác thực kết hợp (JWT hoặc API key)
  */
-export const authenticate = async (req, res, next) => {
+export const authenticateCombined = async (req, res, next) => {
   try {
     // Kiểm tra xem endpoint có cần xác thực không
     const isPublicEndpoint = config.server.publicEndpoints.some(
@@ -21,77 +21,34 @@ export const authenticate = async (req, res, next) => {
       return next();
     }
 
-    // Lấy token từ header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Không có token xác thực');
-    }
-    
-    const token = authHeader.split(' ')[1];
-    
-    // Xác thực token
-    const jwtSecret = config.auth.jwt.secret;
-    let decoded;
-    
-    try {
-      decoded = jwt.verify(token, jwtSecret);
-    } catch (error) {
-      logger.error('JWT verify error:', error);
-      if (error.name === 'TokenExpiredError') {
-        throw new UnauthorizedError('Token đã hết hạn');
-      }
-      throw new UnauthorizedError('Token không hợp lệ');
-    }
-    
-    // Tìm user từ token
-    const user = await User.findById(decoded.id);
-    
-    if (!user) {
-      throw new UnauthorizedError('Người dùng không tồn tại');
-    }
-    
-    if (!user.active) {
-      throw new UnauthorizedError('Tài khoản đã bị vô hiệu hóa');
-    }
-    
-    // Đính kèm thông tin user vào request
-    req.user = {
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      fullname: user.fullname,
-      user_level: user.user_level,
-      is_admin: user.is_admin,
-      is_reseller: user.is_reseller
-    };
-    
-    next();
-  } catch (error) {
-    next(error);
-  }
-};
+    let user = null;
+    let authType = null;
 
-/**
- * Middleware xác thực API key
- */
-export const authenticateApiKey = async (req, res, next) => {
-  try {
-    const apiKey = req.headers['x-api-key'];
-    
-    if (!apiKey) {
-      throw new UnauthorizedError('Không có API key');
+    // Kiểm tra token JWT
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, config.auth.jwt.secret);
+        user = await User.findById(decoded.id);
+        if (user) authType = 'jwt';
+      } catch (error) {
+        logger.debug('JWT validation failed, trying API key');
+      }
     }
     
-    // Tìm user từ API key
-    const user = await User.findOne({ api_key: apiKey });
-    
+    // Kiểm tra API key nếu JWT không hợp lệ
     if (!user) {
-      throw new UnauthorizedError('API key không hợp lệ');
+      const apiKey = req.headers['x-api-key'];
+      if (apiKey) {
+        user = await User.findOne({ api_key: apiKey });
+        if (user) authType = 'api_key';
+      }
     }
     
-    if (!user.active) {
-      throw new UnauthorizedError('Tài khoản đã bị vô hiệu hóa');
+    // Nếu không tìm thấy user hoặc user không active
+    if (!user || !user.active) {
+      throw new UnauthorizedError('Không có token xác thực hoặc API key hợp lệ');
     }
     
     // Đính kèm thông tin user vào request
@@ -101,9 +58,16 @@ export const authenticateApiKey = async (req, res, next) => {
       email: user.email,
       fullname: user.fullname,
       user_level: user.user_level,
-      is_admin: user.is_admin,
-      is_reseller: user.is_reseller
+      is_admin: user.user_level === 0,
+      is_manager: user.user_level === 1,
+      is_reseller: user.user_level === 2,
+      auth_type: authType
     };
+    
+    // Lấy danh sách roles của user
+    const userRoles = await UserRole.find({ user_id: user._id }).populate('role_id');
+    const roles = userRoles.map(userRole => userRole.role_id.name);
+    req.user.roles = roles;
     
     next();
   } catch (error) {
@@ -131,30 +95,29 @@ export const authorize = (roles = []) => {
         return next();
       }
       
-      // Trường hợp đặc biệt - kiểm tra is_admin
-      if (allowedRoles.includes('admin') && req.user.is_admin) {
+      // QUAN TRỌNG: Admin có thể truy cập mọi route
+      if (req.user.is_admin || req.user.user_level === 0) {
         return next();
       }
       
-      // Trường hợp đặc biệt - kiểm tra is_reseller
-      if (allowedRoles.includes('reseller') && req.user.is_reseller) {
+      // Kiểm tra user_level trước
+      if (
+        (allowedRoles.includes('admin') && req.user.is_admin) ||
+        (allowedRoles.includes('manager') && req.user.is_manager) ||
+        (allowedRoles.includes('reseller') && req.user.is_reseller)
+      ) {
         return next();
       }
       
-      // Lấy danh sách vai trò của người dùng
-      const userRoles = await UserRole.find({ user_id: req.user.id })
-        .populate('role_id');
-      
-      // Kiểm tra xem người dùng có vai trò được phép không
-      const hasRole = userRoles.some(userRole => 
-        allowedRoles.includes(userRole.role_id.name)
-      );
-      
-      if (!hasRole) {
-        throw new ForbiddenError('Bạn không có quyền truy cập');
+      // Kiểm tra roles chính xác
+      if (req.user.roles) {
+        const hasRole = req.user.roles.some(role => allowedRoles.includes(role));
+        if (hasRole) {
+          return next();
+        }
       }
       
-      next();
+      throw new ForbiddenError('Bạn không có quyền truy cập');
     } catch (error) {
       next(error);
     }
@@ -162,8 +125,40 @@ export const authorize = (roles = []) => {
 };
 
 /**
- * Middleware kiểm tra quyền
- * @param {Array} permissions - Mảng các quyền được phép truy cập
+ * Middleware kiểm tra user_level
+ * @param {Array} levels - Mảng các user_level được phép truy cập
+ */
+export const checkUserLevel = (levels = []) => {
+  return async (req, res, next) => {
+    try {
+      // Kiểm tra nếu levels không phải là mảng hoặc số
+      if (!Array.isArray(levels) && typeof levels !== 'number') {
+        throw new Error('User levels phải là mảng hoặc số');
+      }
+      
+      // Chuyển đổi thành mảng nếu chỉ truyền vào một level dạng số
+      const allowedLevels = Array.isArray(levels) ? levels : [levels];
+      
+      // Admin (user_level = 0) luôn có quyền truy cập
+      if (req.user.user_level === 0) {
+        return next();
+      }
+      
+      // Kiểm tra nếu user_level của người dùng có trong danh sách cho phép
+      if (allowedLevels.includes(req.user.user_level)) {
+        return next();
+      }
+      
+      throw new ForbiddenError('Bạn không có quyền truy cập');
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
+/**
+ * Middleware kiểm tra permissions
+ * @param {Array} permissions - Mảng các permissions được phép truy cập
  */
 export const hasPermission = (permissions = []) => {
   return async (req, res, next) => {
@@ -173,38 +168,36 @@ export const hasPermission = (permissions = []) => {
         throw new Error('Permissions phải là mảng hoặc chuỗi');
       }
       
-      // Chuyển đổi thành mảng nếu chỉ truyền vào một quyền dạng chuỗi
+      // Chuyển đổi thành mảng nếu chỉ truyền vào một permission dạng chuỗi
       const requiredPermissions = Array.isArray(permissions) ? permissions : [permissions];
       
-      // Trường hợp không yêu cầu quyền cụ thể
-      if (requiredPermissions.length === 0) {
-        return next();
-      }
-      
-      // Nếu là admin, cho phép mọi quyền truy cập
-      if (req.user.is_admin) {
+      // Admin luôn có mọi quyền
+      if (req.user.is_admin || req.user.user_level === 0) {
         return next();
       }
       
       // Lấy danh sách vai trò của người dùng
-      const userRoles = await UserRole.find({ user_id: req.user.id });
-      const roleIds = userRoles.map(ur => ur.role_id);
+      const userRoles = await UserRole.find({ user_id: req.user.id }).populate('role_id');
       
-      // Lấy danh sách quyền dựa trên vai trò
-      const rolePermissions = await RolePermission.find({
-        role_id: { $in: roleIds }
-      }).populate('permission_id');
-      
-      // Kiểm tra xem người dùng có quyền được yêu cầu không
-      const hasRequiredPermission = rolePermissions.some(rp => 
-        requiredPermissions.includes(rp.permission_id.code)
-      );
-      
-      if (!hasRequiredPermission) {
-        throw new ForbiddenError('Bạn không có quyền thực hiện hành động này');
+      if (!userRoles.length) {
+        throw new ForbiddenError('Bạn không có vai trò nào');
       }
       
-      next();
+      // Lấy danh sách quyền từ các vai trò
+      const roleIds = userRoles.map(ur => ur.role_id._id);
+      const rolePermissions = await RolePermission.find({ role_id: { $in: roleIds } }).populate('permission_id');
+      
+      // Kiểm tra xem người dùng có đủ quyền yêu cầu không
+      const userPermissions = rolePermissions.map(rp => rp.permission_id.name);
+      
+      // Kiểm tra xem có tất cả các quyền cần thiết không
+      const hasAllPermissions = requiredPermissions.every(p => userPermissions.includes(p));
+      
+      if (hasAllPermissions) {
+        return next();
+      }
+      
+      throw new ForbiddenError('Bạn không có đủ quyền truy cập');
     } catch (error) {
       next(error);
     }
@@ -212,56 +205,45 @@ export const hasPermission = (permissions = []) => {
 };
 
 /**
- * Middleware kiểm tra vai trò - Alias của authorize cho tương thích với code cũ
- * @param {Array} roles - Mảng các vai trò được phép truy cập
+ * Middleware kiểm tra quyền truy cập tài nguyên
+ * Đảm bảo người dùng chỉ có thể truy cập dữ liệu của chính họ, trừ khi là admin
  */
-export const authorizeRoles = (roles = []) => {
-  return async (req, res, next) => {
-    try {
-      // Kiểm tra nếu roles không phải là mảng hoặc chuỗi
-      if (!Array.isArray(roles) && typeof roles !== 'string') {
-        throw new Error('Roles phải là mảng hoặc chuỗi');
-      }
-      
-      // Chuyển đổi thành mảng nếu chỉ truyền vào một vai trò dạng chuỗi
-      const allowedRoles = Array.isArray(roles) ? roles : [roles];
-      
-      // Trường hợp không yêu cầu vai trò cụ thể
-      if (allowedRoles.length === 0) {
-        return next();
-      }
-      
-      // Kiểm tra admin
-      if (allowedRoles.includes('Admin') && req.user.is_admin) {
-        return next();
-      }
-      
-      // Kiểm tra reseller
-      if (allowedRoles.includes('Reseller') && req.user.is_reseller) {
-        return next();
-      }
-      
-      // Kiểm tra Manager (user_level = 1)
-      if (allowedRoles.includes('Manager') && req.user.user_level === 1) {
-        return next();
-      }
-      
-      // Lấy danh sách vai trò của người dùng
-      const userRoles = await UserRole.find({ user_id: req.user.id })
-        .populate('role_id');
-      
-      // Kiểm tra xem người dùng có vai trò được phép không
-      const hasRole = userRoles.some(userRole => 
-        allowedRoles.includes(userRole.role_id.name)
-      );
-      
-      if (!hasRole) {
-        throw new ForbiddenError('Bạn không có quyền truy cập');
-      }
-      
-      next();
-    } catch (error) {
-      next(error);
+export const checkResourceAccess = async (req, res, next) => {
+  try {
+    // Admin luôn có quyền truy cập
+    if (req.user.is_admin || req.user.user_level === 0) {
+      return next();
     }
-  };
+    
+    // Manager có thể truy cập nhiều dữ liệu hơn
+    if (req.user.is_manager || req.user.user_level === 1) {
+      // Tùy chỉnh quyền cho manager nếu cần
+      return next();
+    }
+    
+    // Kiểm tra userId từ params hoặc query
+    const requestedUserId = req.params.userId || req.params.id || req.query.userId || req.query.user_id;
+    
+    // Nếu không có userId được yêu cầu, coi như là truy cập dữ liệu riêng
+    if (!requestedUserId) {
+      return next();
+    }
+    
+    // Kiểm tra xem người dùng có đang truy cập dữ liệu của chính mình không
+    if (requestedUserId !== req.user.id.toString()) {
+      // Nếu là reseller, kiểm tra xem user được yêu cầu có phải con của reseller không
+      if (req.user.is_reseller) {
+        const requestedUser = await User.findById(requestedUserId);
+        if (requestedUser && requestedUser.parent_id && requestedUser.parent_id.toString() === req.user.id.toString()) {
+          return next();
+        }
+      }
+      
+      throw new ForbiddenError('Bạn không có quyền truy cập dữ liệu của người dùng khác');
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
 }; 
