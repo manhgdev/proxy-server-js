@@ -1,516 +1,340 @@
-# Cấu trúc Code - Proxy Server System
+# Cấu trúc mã nguồn - Hệ thống Proxy Server
 
 ## Tổng quan
 
-Hệ thống Proxy Server được tổ chức theo kiến trúc clean architecture, phân tách rõ ràng các lớp và dễ dàng mở rộng. Mã nguồn được tổ chức như sau:
+Hệ thống Proxy Server được xây dựng theo kiến trúc microservices hiện đại, sử dụng Node.js và MongoDB làm nền tảng chính. Cấu trúc dự án tuân theo nguyên tắc separation of concerns và clean architecture.
+
+## Cấu trúc thư mục chính
 
 ```
-proxy-server/
-├── config/                     # Cấu hình hệ thống
+proxy-server-js/
+├── config/               # Cấu hình hệ thống
+├── src/                  # Mã nguồn chính
+│   ├── api/              # API Controllers và Routes
+│   ├── models/           # Các models MongoDB
+│   ├── services/         # Business logic
+│   ├── middlewares/      # Các middleware Express
+│   ├── utils/            # Các tiện ích
+│   ├── validators/       # Validation schemas
+│   └── app.js            # Entry point
+├── public/               # Tài nguyên tĩnh
+├── tests/                # Unit tests & Integration tests
+├── docs/                 # Tài liệu
+├── scripts/              # Scripts utility và deployment
+└── frontend/             # Frontend application (React)
+```
+
+## Chi tiết từng thư mục
+
+### 1. `config/`
+
+Chứa các file cấu hình cho các môi trường khác nhau (development, staging, production).
+
+```
+config/
+├── index.js              # Điểm vào chính cho config, kết hợp config theo môi trường
+├── database.js           # Cấu hình MongoDB
+├── server.js             # Cấu hình HTTP server
+├── cors.js               # Cấu hình CORS
+├── auth.js               # Cấu hình xác thực
+├── paymentGateways.js    # Cấu hình các cổng thanh toán
+└── proxy.js              # Cấu hình quản lý proxy
+```
+
+### 2. `src/`
+
+#### 2.1 `src/api/`
+
+API endpoints được tổ chức theo chức năng, mỗi chức năng có controllers và routes riêng.
+
+```
+src/api/
+├── index.js              # Điểm vào chính cho API
+├── auth/                 # API xác thực
+│   ├── authController.js
+│   └── authRoutes.js
+├── users/                # API quản lý người dùng
+│   ├── userController.js
+│   └── userRoutes.js
+├── wallet/               # API quản lý ví
+│   ├── walletController.js
+│   └── walletRoutes.js
+├── orders/               # API quản lý đơn hàng
+│   ├── orderController.js
+│   └── orderRoutes.js
+├── proxy/                # API quản lý proxy
+│   ├── proxyController.js
+│   └── proxyRoutes.js
+├── admin/                # API cho admin panel
+│   ├── adminController.js
+│   └── adminRoutes.js
+└── reseller/             # API cho reseller panel
+    ├── resellerController.js
+    └── resellerRoutes.js
+```
+
+#### 2.2 `src/models/`
+
+Models MongoDB sử dụng Mongoose, được tổ chức theo từng entity.
+
+```
+src/models/
+├── index.js              # Điểm vào chính cho models
+├── User.js               # Model người dùng
+├── Role.js               # Model vai trò
+├── Permission.js         # Model quyền
+├── Wallet.js             # Model ví
+├── Transaction.js        # Model giao dịch
+├── Order.js              # Model đơn hàng
+├── OrderItem.js          # Model chi tiết đơn hàng
+├── ProductPackage.js     # Model gói dịch vụ
+├── UserPlan.js           # Model gói người dùng
+├── Proxy.js              # Model proxy
+├── ProxyPool.js          # Model pool proxy
+├── ProxyUsage.js         # Model sử dụng proxy
+└── ...                   # Các models khác
+```
+
+#### 2.3 `src/services/`
+
+Services chứa business logic chính của hệ thống, được tổ chức theo chức năng.
+
+```
+src/services/
+├── index.js              # Điểm vào chính cho services
+├── authService.js        # Service xác thực
+├── userService.js        # Service quản lý người dùng
+├── walletService.js      # Service quản lý ví
+├── orderService.js       # Service quản lý đơn hàng
+├── proxyService.js       # Service quản lý proxy
+├── billingService.js     # Service quản lý thanh toán
+├── emailService.js       # Service gửi email
+├── notificationService.js# Service quản lý thông báo
+├── resellerService.js    # Service cho reseller
+└── adminService.js       # Service cho admin
+```
+
+#### 2.4 `src/middlewares/`
+
+Các middleware Express cho xác thực, logging, error handling, etc.
+
+```
+src/middlewares/
+├── auth.js               # Middleware xác thực
+├── rbac.js               # Middleware phân quyền
+├── errorHandler.js       # Middleware xử lý lỗi
+├── validators.js         # Middleware validation
+├── rateLimit.js          # Middleware giới hạn request
+└── logger.js             # Middleware logging
+```
+
+#### 2.5 `src/utils/`
+
+Các hàm tiện ích được sử dụng xuyên suốt ứng dụng.
+
+```
+src/utils/
+├── errors.js             # Định nghĩa các lỗi
+├── logger.js             # Utility cho logging
+├── encryption.js         # Các hàm mã hóa
+├── dateTime.js           # Xử lý ngày tháng
+├── formatters.js         # Formatting data
+├── validators.js         # Validation helpers
+└── proxyUtils.js         # Utilities cho proxy management
+```
+
+#### 2.6 `src/validators/`
+
+Schemas validation sử dụng Joi hoặc Yup.
+
+```
+src/validators/
+├── auth.js               # Validation cho API xác thực
+├── user.js               # Validation cho API người dùng
+├── order.js              # Validation cho API đơn hàng
+├── wallet.js             # Validation cho API ví
+└── proxy.js              # Validation cho API proxy
+```
+
+### 3. `public/`
+
+Tài nguyên tĩnh như hình ảnh, CSS, v.v.
+
+```
+public/
+├── images/
+├── styles/
+└── uploads/             # Nơi lưu trữ các file upload
+```
+
+### 4. `tests/`
+
+Unit tests và integration tests.
+
+```
+tests/
+├── unit/                # Unit tests
+│   ├── services/
+│   ├── models/
+│   └── utils/
+├── integration/         # Integration tests
+│   ├── api/
+│   └── database/
+└── fixtures/            # Test fixtures
+```
+
+### 5. `docs/`
+
+Tài liệu hệ thống, API docs, và hướng dẫn.
+
+```
+docs/
+├── api/                 # API documentation
+├── setup/               # Setup guides
+├── database-schema.md   # Database schema documentation
+├── diagram.md           # Diagrams
+├── code-structure.md    # Code structure documentation
+└── readme.md            # Main documentation
+```
+
+### 6. `scripts/`
+
+Scripts cho deployment, migrations, và các tác vụ tự động khác.
+
+```
+scripts/
+├── seed-data.js         # Seed initial data
+├── migrations/          # Database migrations
+├── deploy.sh            # Deployment script
+└── backup.sh            # Backup script
+```
+
+### 7. `frontend/`
+
+Frontend React application.
+
+```
+frontend/
+├── public/
 ├── src/
-│   ├── api/                    # API server 
-│   │   ├── controllers/        # Điều khiển API
-│   │   │   ├── auth/           # Xác thực người dùng
-│   │   │   ├── users/          # Quản lý người dùng
-│   │   │   ├── wallet/         # Quản lý ví
-│   │   │   ├── packages/       # Quản lý gói proxy 
-│   │   │   ├── orders/         # Quản lý đơn hàng
-│   │   │   ├── proxies/        # Quản lý proxy
-│   │   │   ├── plans/          # Quản lý gói đã mua
-│   │   │   └── alerts/         # Thông báo
-│   │   │
-│   │   ├── middlewares/        # Middlewares
-│   │   │   ├── auth/           # Xác thực
-│   │   │   ├── validation/     # Xác thực dữ liệu
-│   │   │   ├── logging/        # Ghi log
-│   │   │   └── error/          # Xử lý lỗi
-│   │   │
-│   │   ├── routes/             # Định nghĩa routes
-│   │   ├── validators/         # Xác thực đầu vào
-│   │   └── server.js           # Khởi tạo server
-│   │
-│   ├── core/                   # Core modules
-│   │   ├── user/               # Quản lý người dùng 
-│   │   │   ├── services/       # Dịch vụ người dùng
-│   │   │   ├── repositories/   # Repository người dùng
-│   │   │   └── models/         # User models
-│   │   │
-│   │   ├── proxy/              # Quản lý proxy
-│   │   │   ├── services/       # Dịch vụ proxy
-│   │   │   ├── repositories/   # Repository proxy
-│   │   │   ├── lifecycle/      # Quản lý vòng đời proxy
-│   │   │   ├── rotator/        # Xoay proxy
-│   │   │   ├── pool/           # Quản lý pool proxy
-│   │   │   └── models/         # Proxy models
-│   │   │
-│   │   ├── financial/          # Quản lý tài chính
-│   │   │   ├── wallet/         # Dịch vụ ví
-│   │   │   ├── transactions/   # Quản lý giao dịch
-│   │   │   ├── commission/     # Quản lý hoa hồng
-│   │   │   └── withdrawal/     # Quản lý rút tiền
-│   │   │
-│   │   ├── ordering/           # Quản lý đơn hàng
-│   │   │   ├── services/       # Dịch vụ đơn hàng
-│   │   │   ├── checkout/       # Thanh toán đơn hàng
-│   │   │   ├── confirmation/   # Xác nhận thanh toán
-│   │   │   └── models/         # Order models
-│   │   │
-│   │   ├── plan/               # Quản lý gói proxy
-│   │   │   ├── services/       # Dịch vụ gói proxy
-│   │   │   ├── renewal/        # Gia hạn gói proxy
-│   │   │   ├── expiration/     # Xử lý hết hạn
-│   │   │   ├── allocation/     # Cấp phát proxy
-│   │   │   └── models/         # Plan models
-│   │   │
-│   │   └── notification/       # Thông báo người dùng
-│   │       ├── services/       # Dịch vụ thông báo
-│   │       ├── channels/       # Kênh thông báo
-│   │       └── templates/      # Mẫu thông báo
-│   │
-│   ├── database/               # Quản lý cơ sở dữ liệu
-│   │   ├── models/             # MongoDB models
-│   │   │   ├── user/           # User models
-│   │   │   ├── proxy/          # Proxy models
-│   │   │   ├── financial/      # Financial models
-│   │   │   ├── order/          # Order models
-│   │   │   └── plan/           # Plan models
-│   │   │
-│   │   ├── repositories/       # Repository pattern
-│   │   └── connection.js       # Kết nối MongoDB
-│   │
-│   ├── infrastructure/         # Hạ tầng hệ thống
-│   │   ├── auth/               # Xác thực
-│   │   │   ├── strategies/     # Chiến lược xác thực
-│   │   │   ├── jwt/            # JWT
-│   │   │   └── roles/          # Quản lý quyền
-│   │   │
-│   │   ├── logging/            # Ghi log
-│   │   ├── monitoring/         # Giám sát proxy
-│   │   ├── caching/            # Bộ nhớ đệm
-│   │   └── queue/              # Hàng đợi
-│   │
-│   ├── scheduled/              # Tác vụ định kỳ
-│   │   ├── renewal/            # Gia hạn tự động
-│   │   ├── expiration/         # Kiểm tra hết hạn
-│   │   ├── monitoring/         # Giám sát proxy
-│   │   └── notification/       # Thông báo định kỳ
-│   │
-│   ├── utils/                  # Tiện ích
-│   │   ├── errors/             # Quản lý lỗi
-│   │   ├── formatters/         # Định dạng dữ liệu
-│   │   ├── validators/         # Xác thực dữ liệu
-│   │   └── helpers/            # Hàm trợ giúp
-│   │
-│   └── web/                    # Giao diện người dùng
-│       ├── dashboard/          # Bảng điều khiển
-│       ├── auth/               # Xác thực
-│       ├── account/            # Quản lý tài khoản
-│       ├── proxies/            # Quản lý proxy
-│       ├── billing/            # Thanh toán
-│       └── admin/              # Quản trị
-│
-├── scripts/                    # Scripts tiện ích
-├── tests/                      # Unit & integration tests
-├── docs/                       # Tài liệu
-└── .env                        # Biến môi trường
+│   ├── components/      # React components
+│   ├── pages/           # Pages
+│   ├── hooks/           # Custom hooks
+│   ├── services/        # API services
+│   ├── utils/           # Utilities
+│   ├── context/         # React contexts
+│   ├── redux/           # Redux/state management
+│   └── App.jsx          # Main component
+├── package.json
+└── vite.config.js
 ```
 
-## Chi tiết các module chính
+## Entry Points
 
-### 1. User Management (`src/core/user`)
+- Backend: `src/app.js` - Main Express application
+- Frontend: `frontend/src/main.jsx` - React application entry point
 
-Quản lý người dùng, vai trò và quyền hạn:
+## Kiến trúc phần mềm
 
-- **UserService**: Đăng ký, đăng nhập, quản lý thông tin người dùng
-- **RoleService**: Quản lý vai trò (Admin, Manager, Reseller, Customer)
-- **PermissionService**: Quản lý quyền hạn
-- **ResellerService**: Quản lý mạng lưới đại lý và khách hàng
+Hệ thống Proxy Server tuân theo kiến trúc 3-tier truyền thống:
 
-```javascript
-// src/core/user/services/user.service.js
-class UserService {
-  async register(userData) {
-    // Validate input
-    // Hash password
-    // Create user
-    // Create wallet
-    // Return user
-  }
+1. **Presentation Layer**:
+   - Express.js Routes và Controllers (Backend)
+   - React Components (Frontend)
 
-  async login(username, password) {
-    // Validate credentials
-    // Generate tokens
-    // Return user and tokens
-  }
+2. **Business Logic Layer**:
+   - Services
+   - Validators
+   - Middlewares
 
-  async getProfile(userId) {
-    // Get user details
-    // Get wallet details
-    // Get roles
-    // Return user profile
-  }
+3. **Data Access Layer**:
+   - MongoDB Models
+   - Database utilities
 
-  async getCustomers(resellerId, paginationOptions) {
-    // Get customers of a reseller
-    // Return paginated list
+## Microservices Architecture
+
+Hệ thống có thể được mở rộng theo hướng microservices bằng cách tách các chức năng riêng biệt:
+
+1. **User Service**: Quản lý người dùng, xác thực, phân quyền
+2. **Proxy Service**: Quản lý proxy, phân phối proxy
+3. **Billing Service**: Quản lý thanh toán, ví điện tử
+4. **Order Service**: Quản lý đơn hàng
+5. **Notification Service**: Quản lý thông báo
+
+## Cấu trúc API
+
+API của hệ thống tuân theo tiêu chuẩn RESTful:
+
+- **Xác thực**: JWT (JSON Web Tokens)
+- **Format Data**: JSON
+- **Versioning**: URL-based (v1, v2)
+- **Documentation**: Swagger/OpenAPI
+
+## Quy ước đặt tên và Coding Style
+
+- **Files**: camelCase cho tất cả các files trừ models (PascalCase)
+- **Variables & Functions**: camelCase
+- **Classes & Models**: PascalCase
+- **Constants**: UPPER_SNAKE_CASE
+- **API Endpoints**: kebab-case
+
+## Quản lý Dependencies
+
+Dependencies chính:
+
+```json
+{
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.5.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcrypt": "^5.1.1",
+    "joi": "^17.10.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "winston": "^3.10.0",
+    "nodemailer": "^6.9.5",
+    "multer": "^1.4.5-lts.1",
+    "axios": "^1.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.49.0",
+    "nodemon": "^3.0.1"
   }
 }
 ```
 
-### 2. Proxy Management (`src/core/proxy`)
+## Workflow Development
 
-Quản lý proxy, pool và lifecycle:
+Quy trình phát triển:
 
-- **ProxyService**: Thêm, sửa, xóa proxy
-- **ProxyLifecycleService**: Quản lý vòng đời proxy (tạo, gán, giải phóng)
-- **ProxyPoolService**: Quản lý nhóm proxy
-- **ProxyRotatorService**: Xoay proxy cho gói rotating
+1. **Local Development**: Sử dụng Docker Compose để chạy ứng dụng và MongoDB
+2. **Testing**: Jest cho unit tests và integration tests
+3. **CI/CD**: GitHub Actions
+4. **Deployment**: Containerization với Docker, orchestration với Kubernetes
 
-```javascript
-// src/core/proxy/lifecycle/proxy-lifecycle.service.js
-class ProxyLifecycleService {
-  async assignProxiesToUser(userId, planId, quantity, criteria) {
-    // Find available proxies matching criteria
-    // Mark proxies as assigned
-    // Log the assignment
-    // Return assigned proxies
-  }
+## Quy trình Deploy
 
-  async releaseProxies(planId) {
-    // Find proxies assigned to the plan
-    // Mark them as not assigned
-    // Add to available pool
-    // Log the release
-  }
+1. **Build**: Tạo Docker images cho backend và frontend
+2. **Test**: Chạy tests trên Docker containers
+3. **Deploy**: Push images lên registry và deploy lên Kubernetes cluster
+4. **Monitor**: Sử dụng Prometheus và Grafana
 
-  async rotateProxy(planId, userId) {
-    // Find current proxy
-    // Find new proxy
-    // Update current proxy in plan
-    // Log rotation
-    // Return new proxy
-  }
+## Tiêu chuẩn bảo mật
 
-  async handleExpiredPlan(planId) {
-    // Mark plan as expired
-    // Release proxies after grace period
-    // Log lifecycle event
-    // Return status
-  }
-}
-```
+- Xác thực mạnh với JWT và refresh tokens
+- Mã hóa mật khẩu với bcrypt
+- HTTPS cho tất cả các endpoints
+- Rate limiting để ngăn chặn brute force attacks
+- Input validation cho tất cả các API endpoints
+- CORS configuration
+- Helmet.js để bảo vệ các HTTP headers
 
-### 3. Financial Management (`src/core/financial`)
+## Monitoring và Logging
 
-Quản lý ví và giao dịch tài chính:
-
-- **WalletService**: Quản lý ví người dùng
-- **TransactionService**: Quản lý giao dịch
-- **CommissionService**: Tính toán và phân phối hoa hồng
-- **WithdrawalService**: Xử lý rút tiền
-
-```javascript
-// src/core/financial/wallet/wallet.service.js
-class WalletService {
-  async getWallet(userId) {
-    // Get wallet by user ID
-    // Return wallet details
-  }
-
-  async getTransactions(userId, filters, paginationOptions) {
-    // Get transactions
-    // Apply filters
-    // Return paginated list
-  }
-
-  async deposit(userId, amount, paymentDetails) {
-    // Validate amount
-    // Create transaction
-    // Apply bonus if eligible
-    // Update wallet balance
-    // Return transaction
-  }
-
-  async withdraw(userId, amount, withdrawalDetails) {
-    // Validate amount
-    // Check balance
-    // Create withdrawal request
-    // Lock amount
-    // Return withdrawal request
-  }
-
-  async processPayment(orderId, paymentSource) {
-    // Get order
-    // Check payment source
-    // Process payment
-    // Update order status
-    // Return payment result
-  }
-}
-```
-
-### 4. Order Management (`src/core/ordering`)
-
-Quản lý đơn hàng:
-
-- **OrderService**: Tạo và quản lý đơn hàng
-- **CheckoutService**: Thanh toán đơn hàng
-- **PaymentConfirmationService**: Xác nhận thanh toán thủ công
-
-```javascript
-// src/core/ordering/services/order.service.js
-class OrderService {
-  async createOrder(userId, orderData) {
-    // Validate items
-    // Calculate total
-    // Create order
-    // Process payment if wallet
-    // Return order
-  }
-
-  async getOrders(userId, paginationOptions) {
-    // Get orders
-    // Return paginated list
-  }
-
-  async confirmPayment(orderId, paymentDetails) {
-    // Find order
-    // Create payment confirmation
-    // Notify admin
-    // Return confirmation
-  }
-}
-```
-
-### 5. Plan Management (`src/core/plan`)
-
-Quản lý gói proxy đã mua:
-
-- **UserPlanService**: Tạo và quản lý gói proxy người dùng
-- **PlanRenewalService**: Gia hạn gói proxy
-- **PlanExpirationService**: Xử lý gói hết hạn
-- **ProxyAllocationService**: Cấp phát proxy cho gói
-
-```javascript
-// src/core/plan/expiration/plan-expiration.service.js
-class PlanExpirationService {
-  async processPlanExpiration() {
-    // Find plans that expired
-    // Mark them as expired
-    // Create alerts for users
-    // Return processed plans
-  }
-
-  async handleGracePeriod() {
-    // Find plans in grace period
-    // Send urgent reminders
-    // Return processed plans
-  }
-
-  async suspendExpiredPlans() {
-    // Find plans past grace period
-    // Mark as inactive
-    // Release proxies to pool
-    // Create suspended records
-    // Notify users
-    // Return suspended plans
-  }
-
-  async restorePlan(planId, paymentResult) {
-    // Find expired plan
-    // Create new period
-    // Try to restore original proxies
-    // Or allocate new proxies
-    // Notify user
-    // Return restored plan
-  }
-}
-```
-
-### 6. Scheduled Tasks (`src/scheduled`)
-
-Tác vụ chạy định kỳ:
-
-- **RenewalScheduler**: Lập lịch gia hạn tự động
-- **ExpirationChecker**: Kiểm tra gói hết hạn
-- **ProxyMonitor**: Giám sát tình trạng proxy
-- **NotificationScheduler**: Gửi thông báo định kỳ
-
-```javascript
-// src/scheduled/expiration/expiration-checker.js
-export async function checkExpiringPlans() {
-  const expirationService = new PlanExpirationService();
-  
-  // Check plans expiring soon
-  const expiringPlans = await expirationService.findPlansExpiringSoon(7); // 7 days
-  
-  // Send reminders
-  for (const plan of expiringPlans) {
-    await NotificationService.sendExpiryReminder(plan);
-  }
-  
-  // Check plans in grace period
-  const gracePeriodPlans = await expirationService.findPlansInGracePeriod();
-  
-  // Send urgent reminders
-  for (const plan of gracePeriodPlans) {
-    await NotificationService.sendGracePeriodAlert(plan);
-  }
-  
-  // Find plans to suspend
-  const plansToSuspend = await expirationService.findPlansToSuspend();
-  
-  // Suspend plans
-  for (const plan of plansToSuspend) {
-    await expirationService.suspendPlan(plan._id);
-  }
-  
-  return {
-    expiringSoon: expiringPlans.length,
-    inGracePeriod: gracePeriodPlans.length,
-    suspended: plansToSuspend.length
-  };
-}
-```
-
-## Mô hình xử lý dữ liệu
-
-Ứng dụng sử dụng mô hình Repository Pattern để tương tác với MongoDB, tách biệt logic nghiệp vụ khỏi truy cập dữ liệu:
-
-```javascript
-// src/database/repositories/proxy.repository.js
-class ProxyRepository {
-  async findAvailableProxies(criteria, quantity) {
-    return Proxy.find({
-      ...criteria,
-      assigned: false,
-      status: 'active'
-    }).limit(quantity);
-  }
-  
-  async markAsAssigned(proxyIds, userId) {
-    return Proxy.updateMany(
-      { _id: { $in: proxyIds } },
-      { 
-        $set: { 
-          assigned: true,
-          last_assigned_at: new Date(),
-          current_user_id: userId
-        }
-      }
-    );
-  }
-  
-  async markAsUnassigned(proxyIds, userId) {
-    return Proxy.updateMany(
-      { _id: { $in: proxyIds } },
-      { 
-        $set: { 
-          assigned: false,
-          last_unassigned_at: new Date(),
-          last_user_id: userId,
-          current_user_id: null
-        }
-      }
-    );
-  }
-  
-  async findProxiesByPlan(planId) {
-    const staticPlan = await StaticProxyPlan.findOne({ user_plan_id: planId });
-    return staticPlan ? Proxy.find({ _id: { $in: staticPlan.proxies } }) : [];
-  }
-}
-```
-
-## API Controllers
-
-Controllers xử lý yêu cầu API và gọi các service tương ứng:
-
-```javascript
-// src/api/controllers/plans/my-plans.controller.js
-class MyPlansController {
-  async getPlans(req, res) {
-    const userId = req.user.id;
-    const { page, limit } = req.query;
-    
-    const planService = new UserPlanService();
-    const plans = await planService.getUserPlans(userId, { page, limit });
-    
-    return res.json({
-      status: 'success',
-      data: plans
-    });
-  }
-  
-  async getPlanById(req, res) {
-    const userId = req.user.id;
-    const planId = req.params.id;
-    
-    const planService = new UserPlanService();
-    const plan = await planService.getUserPlanDetails(userId, planId);
-    
-    if (!plan) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Plan not found'
-      });
-    }
-    
-    return res.json({
-      status: 'success',
-      data: plan
-    });
-  }
-  
-  async rotateProxy(req, res) {
-    const userId = req.user.id;
-    const planId = req.params.id;
-    
-    const rotatorService = new ProxyRotatorService();
-    const result = await rotatorService.rotateProxy(userId, planId);
-    
-    return res.json({
-      status: 'success',
-      message: 'Proxy đã được xoay thành công',
-      data: {
-        new_proxy: {
-          ip: result.ip,
-          port: result.port
-        },
-        rotated_at: result.rotatedAt
-      }
-    });
-  }
-  
-  async setRenewalStatus(req, res) {
-    const userId = req.user.id;
-    const planId = req.params.id;
-    const { renewal_status } = req.body;
-    
-    const renewalService = new PlanRenewalService();
-    const result = await renewalService.setRenewalStatus(userId, planId, renewal_status);
-    
-    return res.json({
-      status: 'success',
-      message: 'Cài đặt gia hạn tự động thành công',
-      data: {
-        plan_id: planId,
-        renewal_status: renewal_status,
-        renewal_price: result.renewal_price
-      }
-    });
-  }
-}
-```
-
-## Công nghệ sử dụng
-
-- **Runtime**: Node.js với Bun
-- **API Framework**: Express.js
-- **Database**: MongoDB
-- **Authentication**: JWT, API Keys
-- **Logging**: Winston, Pino
-- **Testing**: Jest, Supertest
-- **Documentation**: Swagger, JSDoc
-- **Frontend**: React, Material UI (Dashboard)
-- **DevOps**: Docker, Docker Compose, GitHub Actions 
+- **Logging**: Winston cho application logs
+- **Error tracking**: Sentry
+- **Performance monitoring**: New Relic hoặc Datadog
+- **Infrastructure monitoring**: Prometheus & Grafana 

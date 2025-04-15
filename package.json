@@ -1,0 +1,48 @@
+{
+  "name": "proxy-server-js",
+  "version": "1.0.0",
+  "description": "Hệ thống quản lý và phân phối proxy",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "seed": "node scripts/seed-data.js",
+    "dev:all": "concurrently \"bun dev\" \"cd frontend && bun dev\""
+  },
+  "keywords": [
+    "proxy",
+    "datacenter",
+    "residential",
+    "rotating",
+    "bandwidth"
+  ],
+  "author": "manhg",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "joi": "^17.10.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.5.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.5",
+    "morgan": "^1.10.0",
+    "winston": "^3.10.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "eslint": "^8.49.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

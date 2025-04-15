@@ -1,8 +1,17 @@
-# Thiết kế MongoDB Schema cho Hệ thống Proxy Server
+# Database Schema - Hệ thống Proxy Server
 
-## I. Quản lý người dùng
+## Tổng quan
 
-### 1. Users
+Hệ thống Proxy Server sử dụng MongoDB làm cơ sở dữ liệu chính. Cơ sở dữ liệu được chia thành 4 nhóm chức năng chính:
+
+1. Quản lý Người dùng
+2. Quản lý Tài chính
+3. Quản lý Proxy
+4. Quản lý Đơn hàng
+
+## I. Quản lý Người dùng
+
+### Collection: Users
 ```javascript
 {
   _id: ObjectId,
@@ -11,35 +20,29 @@
   email: String,
   fullname: String,
   phone: String,
+  user_level: Number,  // 0: Admin, 1: Manager, 2: Reseller, 3: Customer
+  parent_id: ObjectId, // Reference to Users (reseller ID)
   created_at: Date,
   updated_at: Date,
   active: Boolean,
-  api_key: String,         // Key bảo mật API
-  access_token: String,    // Token truy cập
-  wallet_id: ObjectId,     // Tham chiếu đến ví tiền
-  parent_id: ObjectId,     // Tham chiếu đến reseller quản lý user này
-  user_level: Number,      // Cấp bậc người dùng (0: Admin, 1: Manager, 2: Reseller, 3: Customer)
+  api_key: String,
+  access_token: String,
+  wallet_id: ObjectId, // Reference to Wallets
   billing_info: {
-    company_name: String,
-    tax_id: String,
     address: String,
-    payment_methods: [
-      {
-        type: String,      // "credit_card", "paypal", etc.
-        details: Object    // Card info, etc.
-      }
-    ]
+    tax_id: String,
+    company: String
   }
 }
 ```
 
-### 2. Roles
+### Collection: Roles
 ```javascript
 {
   _id: ObjectId,
-  name: String,             // "Admin", "Manager", "Reseller", "Customer"
+  name: String,        // admin, manager, reseller, customer
   description: String,
-  level: Number,            // Numeric level for hierarchy
+  level: Number,       // Hierarchy level
   is_admin: Boolean,
   is_reseller: Boolean,
   created_at: Date,
@@ -47,87 +50,86 @@
 }
 ```
 
-### 3. UserRoles
+### Collection: UserRoles
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,        // Tham chiếu đến người dùng
-  role_id: ObjectId,        // Tham chiếu đến vai trò
+  user_id: ObjectId,   // Reference to Users
+  role_id: ObjectId,   // Reference to Roles
   assigned_at: Date,
-  assigned_by: ObjectId,    // User ID của người gán vai trò
+  assigned_by: ObjectId, // Reference to Users (who assigned)
   created_at: Date
 }
 ```
 
-### 4. Permissions
+### Collection: Permissions
 ```javascript
 {
   _id: ObjectId,
-  name: String,             // Tên quyền
-  code: String,             // Mã quyền dùng trong code
+  name: String,
+  code: String,        // machine-readable code
   description: String,
-  group: String,            // Nhóm quyền: "user", "proxy", "billing", etc.
+  group: String,       // e.g., user, proxy, finance
   created_at: Date
 }
 ```
 
-### 5. RolePermissions
+### Collection: RolePermissions
 ```javascript
 {
   _id: ObjectId,
-  role_id: ObjectId,        // Tham chiếu đến vai trò
-  permission_id: ObjectId,  // Tham chiếu đến quyền
+  role_id: ObjectId,   // Reference to Roles
+  permission_id: ObjectId, // Reference to Permissions
   created_at: Date
 }
 ```
 
-### 6. UserSettings
+### Collection: UserSettings
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,        // Tham chiếu đến người dùng
-  theme: String,            // "light", "dark"
-  language: String,         // "vi", "en"
+  user_id: ObjectId,   // Reference to Users
+  theme: String,       // light, dark
+  language: String,    // en, vi
   notification_prefs: {
     email: Boolean,
-    browser: Boolean,
-    expiry_reminder_days: Number, // Số ngày trước khi hết hạn để nhắc nhở
-    low_balance: Boolean,
-    proxy_status: Boolean
+    dashboard: Boolean,
+    proxy_expiry: Boolean,
+    balance_low: Boolean
   },
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 7. ResellerDetails
+### Collection: ResellerDetails
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,        // Tham chiếu đến tài khoản là reseller
-  commission_rate: Number,  // Tỷ lệ hoa hồng cho reseller
-  downline_count: Number,   // Số lượng khách hàng
-  total_sales: Number,      // Tổng doanh số
-  payment_details: {        // Thông tin thanh toán hoa hồng
+  user_id: ObjectId,   // Reference to Users
+  commission_rate: Number, // Percentage
+  downline_count: Number,  // Number of customers
+  total_sales: Number,
+  payment_details: {
     bank_name: String,
     account_number: String,
-    account_holder: String
+    account_name: String
   },
   created_at: Date,
   updated_at: Date
 }
 ```
 
-## II. Quản lý tài chính
+## II. Quản lý Tài chính
 
-### 8. Wallets
+### Collection: Wallets
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,       // Tham chiếu đến người dùng
-  balance: Number,         // Số dư hiện tại 
-  currency: String,        // VND, USD, etc.
-  locked_amount: Number,   // Số tiền đang tạm khóa
+  user_id: ObjectId,   // Reference to Users
+  balance: Number,
+  currency: String,    // VND, USD
+  locked_amount: Number,
   created_at: Date,
   updated_at: Date,
   last_deposit_at: Date,
@@ -135,121 +137,116 @@
 }
 ```
 
-### 9. WalletTransactions
+### Collection: WalletTransactions
 ```javascript
 {
   _id: ObjectId,
-  wallet_id: ObjectId,
-  user_id: ObjectId,
-  type: String,            // "deposit", "withdrawal", "purchase", "refund", "renewal"
-  amount: Number,          // Số tiền giao dịch
-  balance_before: Number,  // Số dư trước giao dịch
-  balance_after: Number,   // Số dư sau giao dịch
+  wallet_id: ObjectId, // Reference to Wallets
+  user_id: ObjectId,   // Reference to Users
+  type: String,        // deposit, withdrawal, payment, commission, bonus
+  amount: Number,
+  balance_before: Number,
+  balance_after: Number,
   currency: String,
-  status: String,          // "pending", "completed", "failed", "cancelled"
+  status: String,      // pending, completed, failed, cancelled
   description: String,
-  bonus_amount: Number,    // Tiền thưởng/hoa hồng nếu có
+  bonus_amount: Number, // Only for deposits with bonus
   metadata: {
-    payment_method: String,    // "bank_transfer", "credit_card", etc.
-    order_id: ObjectId,        // Tham chiếu đến đơn hàng (nếu có)
-    plan_id: ObjectId,         // Tham chiếu đến UserPlans nếu là renewal
-    renewal_id: ObjectId,      // Tham chiếu đến RenewalRecords nếu là renewal
-    transaction_id: String,    // ID giao dịch từ bên thứ ba
-    payment_proof: String      // URL đến ảnh chứng từ
+    payment_method: String,
+    order_id: ObjectId,
+    invoice_number: String,
+    commission_for: ObjectId
   },
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 10. BonusTiers
+### Collection: BonusTiers
 ```javascript
 {
   _id: ObjectId,
-  name: String,              // Tên mức thưởng
-  min_amount: Number,        // Số tiền nạp tối thiểu
-  bonus_percent: Number,     // Phần trăm thưởng
-  bonus_max: Number,         // Số tiền thưởng tối đa (nếu có)
+  name: String,
+  min_amount: Number,
+  bonus_percent: Number,
+  bonus_max: Number,   // Maximum bonus amount
   active: Boolean,
-  currency: String,          // VND, USD, etc.
-  start_date: Date,          // Ngày bắt đầu áp dụng
-  end_date: Date,            // Ngày kết thúc (null nếu không giới hạn)
+  currency: String,
+  start_date: Date,
+  end_date: Date,      // null for no end date
   description: String,
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 11. CommissionLog
+### Collection: CommissionLog
 ```javascript
 {
   _id: ObjectId,
-  reseller_id: ObjectId,     // ID của reseller nhận hoa hồng
-  customer_id: ObjectId,     // ID của khách hàng tạo đơn hàng
-  order_id: ObjectId,        // Đơn hàng tạo ra hoa hồng
-  transaction_id: ObjectId,  // Giao dịch ví liên quan
-  amount: Number,            // Số tiền đơn hàng
-  commission_rate: Number,   // Tỷ lệ hoa hồng
-  commission_amount: Number, // Số tiền hoa hồng
+  reseller_id: ObjectId, // Reference to Users (reseller)
+  customer_id: ObjectId, // Reference to Users (customer)
+  order_id: ObjectId,    // Reference to Orders
+  transaction_id: ObjectId, // Reference to WalletTransactions
+  amount: Number,        // Order amount
+  commission_rate: Number, // Percentage
+  commission_amount: Number, // Actual commission
   created_at: Date
 }
 ```
 
-### 12. WithdrawalRequests
+### Collection: WithdrawalRequests
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,         // Người dùng yêu cầu rút tiền 
-  amount: Number,            // Số tiền yêu cầu rút
+  user_id: ObjectId,   // Reference to Users
+  amount: Number,
   currency: String,
-  status: String,            // "pending", "approved", "rejected", "completed"
-  payment_method: String,    // "bank_transfer", "paypal", etc.
+  status: String,      // pending, approved, rejected, processed
+  payment_method: String,
   payment_details: {
     bank_name: String,
     account_number: String,
-    account_holder: String,
-    branch: String,
-    swift_code: String
+    account_name: String
   },
   requested_at: Date,
-  processed_at: Date,
+  processed_at: Date,  // When request was processed
   created_at: Date,
   updated_at: Date
 }
 ```
 
-## III. Quản lý proxy
+## III. Quản lý Proxy
 
-### 13. ProductPackages
+### Collection: ProductPackages
 ```javascript
 {
   _id: ObjectId,
-  name: String,                // "Datacenter Static", "Residential Bandwidth", etc.
+  name: String,
   description: String,
-  type: String,                // "static", "rotating", "bandwidth"
-  category: String,            // "residential", "datacenter"
-  protocol: String,            // "http", "socks5", "mixed"
+  type: String,        // static, rotating, bandwidth
+  category: String,    // datacenter, residential, mobile
+  protocol: String,    // http, socks5
   is_rotating: Boolean,
-  is_bandwidth: Boolean,       // True for bandwidth-based packages
+  is_bandwidth: Boolean,
   duration_days: Number,
-  price: Number,               // Base price or per IP price
-  price_per_gb: Number,        // For bandwidth packages
-  allowed_countries: [String],
-  allowed_isps: [String],
-  features: [String],          // "sticky_ip", "country_routing", etc.
-  price_tiers: [
+  price: Number,
+  price_tiers: [       // Volume discounts
     {
-      min_quantity: Number,    // Min IPs or GB
-      price: Number            // Price at this tier
+      min_quantity: Number,
+      price_per_unit: Number
     }
   ],
+  allowed_countries: [String],
+  allowed_isps: [String],
+  features: [String],
   active: Boolean,
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 14. Proxies
+### Collection: Proxies
 ```javascript
 {
   _id: ObjectId,
@@ -257,294 +254,487 @@
   port: Number,
   username: String,
   password: String,
-  protocol: String,           // "http", "socks5"
-  type: String,               // "static", "rotating"
-  category: String,           // "residential", "datacenter" 
-  country: String,            // ISO country code
+  protocol: String,    // http, socks5
+  type: String,        // datacenter, residential, mobile
+  category: String,    // shared, dedicated
+  country: String,     // ISO country code
   city: String,
-  region: String,
+  region: String,      // State/province
   isp: String,
-  status: String,             // "active", "inactive", "error", "dead"
-  sold: Boolean,              // True if it has ever been sold
-  assigned: Boolean,          // True if currently assigned to an active plan
-  last_user_id: ObjectId,     // Previous user that owned this proxy
-  current_user_id: ObjectId,  // Current user that owns this proxy
+  status: String,      // active, testing, inactive, error
+  sold: Boolean,
+  assigned: Boolean,   // Currently assigned to a user
+  current_user_id: ObjectId, // Reference to Users
+  last_user_id: ObjectId,    // Last user who had this proxy
+  health_status: {
+    last_check: Date,
+    response_time: Number,
+    success_rate: Number,
+    error_message: String
+  },
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 15. ProxyPools
+### Collection: ProxyPools
 ```javascript
 {
   _id: ObjectId,
-  name: String,                // "Vietnam Mobile", "US Residential"
+  name: String,
   description: String,
-  group: String,               // "vn-mobile", "us-residential"
-  countries: [String],
-  isps: [String],
-  connection_types: [String],
+  group: String,       // Categorization
+  countries: [String], // Available countries
+  isps: [String],      // Available ISPs
+  connection_types: [String], // mobile, residential, etc.
   proxy_count: Number,
   active_proxy_count: Number,
-  entry_point: String,         // Gateway address
+  entry_point: String, // Hostname or IP for the pool
   port_range: {
     start: Number,
     end: Number
   },
-  username_format: String,
-  password_format: String,
-  is_bandwidth_pool: Boolean,  // True if this pool is used for bandwidth plans
+  username_format: String, // Format for dynamic username generation
+  password_format: String, // Format for dynamic password generation
+  is_bandwidth_pool: Boolean,
   active: Boolean,
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 16. UserPlans
+### Collection: UserPlans
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,
-  package_id: ObjectId,        // Reference to the ProductPackage
-  order_id: ObjectId,
-  plan_type: String,           // "static", "rotating", "bandwidth"
+  user_id: ObjectId,   // Reference to Users
+  package_id: ObjectId, // Reference to ProductPackages
+  order_id: ObjectId,  // Reference to Orders
+  plan_type: String,   // static, rotating, bandwidth
   start_date: Date,
   end_date: Date,
   active: Boolean,
-  expired: Boolean,            // Đánh dấu đã hết hạn
-  expired_at: Date,            // Thời điểm hết hạn thực tế (có thể khác end_date)
-  renewal_status: String,      // "not_set", "pending", "auto", "disabled"
-  renewal_reminder_sent: Boolean,
-  renewal_reminder_date: Date,
-  renewal_price: Number,       // Stored price for renewal
-  grace_period_days: Number,   // Số ngày ân hạn sau khi hết hạn
-  suspension_date: Date,       // Ngày tạm ngưng service nếu không gia hạn
+  expired: Boolean,
+  expired_at: Date,
+  grace_period_days: Number,
+  suspension_date: Date,
+  renewal_status: String, // not_renewed, pending, renewed
+  renewal_price: Number,
+  auto_renew: Boolean,
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 17. StaticProxyPlans
+### Collection: StaticProxyPlans
 ```javascript
 {
   _id: ObjectId,
-  user_plan_id: ObjectId,       // Tham chiếu đến UserPlans
-  proxies: [ObjectId],          // Danh sách proxy đã gán
-  protocol: String,             // "http", "socks5"
-  category: String,             // "residential", "datacenter"
+  user_plan_id: ObjectId, // Reference to UserPlans
+  proxies: [ObjectId],    // References to Proxies
+  protocol: String,      // http, socks5
+  category: String,      // datacenter, residential
   is_rotating: Boolean,
-  rotation_interval: Number,    // Seconds between rotations (if rotating)
-  proxies_released: Boolean,    // Đã giải phóng proxy sau khi hết hạn
-  proxies_released_at: Date,    // Thời điểm giải phóng proxy
-  previous_proxies: [ObjectId], // Danh sách proxy trước khi giải phóng
-  rotation_url: String,         // URL to trigger rotation
+  rotation_interval: Number, // In seconds
+  rotation_url: String,   // API endpoint for manual rotation
+  proxies_released: Boolean, // True if proxies were released after expiry
+  previous_proxies: [ObjectId], // Proxies before release
   custom_username: String,
   custom_password: String,
-  current_proxy_id: ObjectId,   // Current active proxy in rotation
-  last_rotation: Date           // Last time proxy was rotated
+  current_proxy_id: ObjectId, // Current active proxy (for rotating)
+  last_rotation: Date
 }
 ```
 
-### 18. BandwidthPlans
+### Collection: BandwidthPlans
 ```javascript
 {
   _id: ObjectId,
-  user_plan_id: ObjectId,       // Tham chiếu đến UserPlans
-  gb_amount: Number,            // Tổng GB đã mua
-  gb_remaining: Number,         // GB còn lại
-  gb_used: Number,              // GB đã sử dụng
+  user_plan_id: ObjectId, // Reference to UserPlans
+  gb_amount: Number,      // Total GB purchased
+  gb_remaining: Number,   // GB left
+  gb_used: Number,
   price_per_gb: Number,
-  custom_settings: Object,      // Cài đặt tùy chỉnh
-  allowed_pools: [ObjectId],    // Danh sách pool được phép truy cập
-  allowed_countries: [String],  // Giới hạn quốc gia
-  current_proxy_id: ObjectId,   // Current proxy in use
-  access_key: String,           // API key để truy cập bandwidth
-  access_revoked: Boolean,      // Đã thu hồi quyền truy cập
-  access_revoked_at: Date       // Thời điểm thu hồi quyền
+  custom_settings: {
+    sticky_sessions: Boolean,
+    session_duration: Number
+  },
+  allowed_pools: [ObjectId], // References to ProxyPools
+  allowed_countries: [String],
+  current_proxy_id: ObjectId, // Current session proxy
+  access_key: String         // API access key
 }
 ```
 
-### 19. AvailableProxyPool
+### Collection: ProxyReplacements
 ```javascript
 {
   _id: ObjectId,
-  proxy_ids: [ObjectId],      // Danh sách proxy có sẵn để bán
-  category: String,           // "residential", "datacenter"
-  country: String,            // ISO country code
-  isp: String,                // Nhà cung cấp dịch vụ
-  status: String,             // "active", "checking"
-  last_checked: Date,         // Thời điểm kiểm tra gần nhất
-  available_count: Number     // Số lượng proxy khả dụng
-}
-```
-
-### 20. ExpiredProxyRecords
-```javascript
-{
-  _id: ObjectId,
-  user_id: ObjectId,          // Người dùng đã sử dụng proxy
-  plan_id: ObjectId,          // Gói đã hết hạn
-  proxies: [ObjectId],        // Danh sách proxy đã được sử dụng
-  expired_at: Date,           // Thời điểm hết hạn
-  can_restore_until: Date,    // Thời hạn có thể khôi phục
-  restored: Boolean,          // Đã khôi phục chưa
-  restored_at: Date,          // Thời điểm khôi phục
-  created_at: Date
-}
-```
-
-### 21. ProxyReplacements
-```javascript
-{
-  _id: ObjectId,
-  user_id: ObjectId,
-  plan_id: ObjectId,
-  original_proxy_id: ObjectId,  // Proxy được thay thế
-  new_proxy_id: ObjectId,       // Proxy mới
-  reason: String,               // "dead", "slow", "user_request", "blacklisted"
+  user_id: ObjectId,       // Reference to Users
+  plan_id: ObjectId,       // Reference to UserPlans
+  original_proxy_id: ObjectId, // Reference to Proxies
+  new_proxy_id: ObjectId,      // Reference to Proxies
+  reason: String,
   requested_at: Date,
-  processed_at: Date,
-  status: String,               // "pending", "completed", "failed"
+  processed_at: Date,      // When replacement was processed
+  status: String,          // pending, completed, rejected
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 22. ProxyLifecycleLogs
+### Collection: BandwidthTopups
 ```javascript
 {
   _id: ObjectId,
-  proxy_ids: [ObjectId],        // Danh sách proxy liên quan
-  user_id: ObjectId,            // Người dùng liên quan (nếu có)
-  plan_id: ObjectId,            // Gói liên quan (nếu có)
-  action: String,               // "created", "assigned", "released", "rotated", "replaced", "deleted"
-  reason: String,               // "plan_purchased", "plan_expired", "user_request", "proxy_dead", "admin_action"
-  previous_status: String,      // Trạng thái trước khi thực hiện action
-  new_status: String,           // Trạng thái sau khi thực hiện action
-  performed_by: ObjectId,       // User ID người thực hiện (thường là admin hoặc hệ thống)
-  performed_at: Date,
+  user_id: ObjectId,    // Reference to Users
+  plan_id: ObjectId,    // Reference to BandwidthPlans
+  order_id: ObjectId,   // Reference to Orders
+  gb_amount: Number,
+  price: Number,
+  previous_gb_remaining: Number,
+  new_gb_total: Number,
   created_at: Date
 }
 ```
 
-### 23. ProxyUsageLogs
+### Collection: RenewalRecords
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,
-  plan_id: ObjectId,
-  proxy_id: ObjectId,
+  user_id: ObjectId,      // Reference to Users
+  original_plan_id: ObjectId, // Reference to UserPlans
+  new_plan_id: ObjectId,      // Reference to UserPlans
+  order_id: ObjectId,     // Reference to Orders
+  renewal_date: Date,
+  renewal_price: Number,
+  auto_renewal: Boolean,
+  status: String,         // completed, failed
+  created_at: Date
+}
+```
+
+### Collection: ProxyUsageLogs
+```javascript
+{
+  _id: ObjectId,
+  user_id: ObjectId,    // Reference to Users
+  plan_id: ObjectId,    // Reference to UserPlans/BandwidthPlans
+  proxy_id: ObjectId,   // Reference to Proxies or null for pool
   timestamp: Date,
-  request_url: String,          // Target URL (if allowed to track)
+  request_url: String,  // Target URL (if available)
   bytes_sent: Number,
   bytes_received: Number,
   total_bytes: Number,
-  gb_used: Number,              // GB consumed (for bandwidth plans)
-  success: Boolean,             // Request succeeded or failed
-  created_at: Date
-}
-```
-
-### 24. BandwidthTopups
-```javascript
-{
-  _id: ObjectId,
-  user_id: ObjectId,
-  plan_id: ObjectId,            // Tham chiếu đến BandwidthPlans
-  order_id: ObjectId,           // Đơn hàng mua thêm
-  gb_amount: Number,            // Số GB mua thêm
-  price: Number,                // Giá mua
-  previous_gb_remaining: Number, // GB còn lại trước khi nạp thêm
-  new_gb_total: Number,         // Tổng GB sau khi nạp thêm
-  created_at: Date
-}
-```
-
-### 25. RenewalRecords
-```javascript
-{
-  _id: ObjectId,
-  user_id: ObjectId,
-  original_plan_id: ObjectId,  // Gói cũ được gia hạn
-  order_id: ObjectId,          // Đơn hàng gia hạn
-  renewal_date: Date,          // Ngày gia hạn
-  renewal_price: Number,       // Giá gia hạn
-  auto_renewal: Boolean,       // Gia hạn tự động hay không
-  status: String,              // "pending", "completed", "failed"
-  created_at: Date
-}
-```
-
-## IV. Quản lý đơn hàng
-
-### 26. Orders
-```javascript
-{
-  _id: ObjectId,
-  user_id: ObjectId,
-  wallet_id: ObjectId,         // Tham chiếu đến ví tiền để thanh toán
-  order_number: String,
-  total_amount: Number,
-  payment_source: String,      // "wallet", "credit_card", "bank_transfer"
-  wallet_trans_id: ObjectId,   // Tham chiếu đến giao dịch ví (nếu thanh toán bằng ví)
-  status: String,              // "pending", "completed", "cancelled"
-  payment_method: String,
-  payment_status: String,      // "pending", "paid", "failed"
-  reseller_id: ObjectId,       // ID của reseller (nếu đơn này qua reseller)
-  commission_rate: Number,     // Tỷ lệ hoa hồng cho reseller
-  created_at: Date,
-  updated_at: Date
-}
-```
-
-### 27. OrderItems
-```javascript
-{
-  _id: ObjectId,
-  order_id: ObjectId,          // Tham chiếu đến Orders
-  package_id: ObjectId,        // Tham chiếu đến ProductPackages
-  quantity: Number,            // Số lượng proxy hoặc GB
-  price: Number,               // Giá một đơn vị
-  subtotal: Number,            // Thành tiền = quantity * price
-  custom_config: {             // Cấu hình tùy chỉnh
-    username: String,
-    password: String,
-    rotation_interval: Number,
-    countries: [String],
-    isps: [String]
+  gb_used: Number,      // For bandwidth plans
+  success: Boolean,
+  error_code: Number,   // HTTP error code if any
+  error_message: String,
+  location_info: {
+    country: String,
+    city: String
   },
   created_at: Date
 }
 ```
 
-### 28. PaymentConfirmations
+## IV. Quản lý Đơn hàng
+
+### Collection: Orders
 ```javascript
 {
   _id: ObjectId,
-  order_id: ObjectId,          // Tham chiếu đến Orders
-  user_id: ObjectId,
+  user_id: ObjectId,    // Reference to Users
+  wallet_id: ObjectId,  // Reference to Wallets
+  order_number: String,
+  total_amount: Number,
+  payment_source: String, // wallet, paypal, bank_transfer
+  wallet_trans_id: ObjectId, // Reference to WalletTransactions
+  status: String,       // pending, completed, cancelled
+  payment_method: String,
+  payment_status: String, // paid, unpaid, partially_paid
+  reseller_id: ObjectId, // If purchased through reseller
+  commission_rate: Number, // Reseller commission rate
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+### Collection: OrderItems
+```javascript
+{
+  _id: ObjectId,
+  order_id: ObjectId,   // Reference to Orders
+  package_id: ObjectId, // Reference to ProductPackages
+  quantity: Number,
+  price: Number,
+  subtotal: Number,     // price * quantity
+  custom_config: {      // Custom configuration for the package
+    protocol: String,
+    countries: [String],
+    rotation_interval: Number
+  },
+  created_at: Date
+}
+```
+
+### Collection: PaymentConfirmations
+```javascript
+{
+  _id: ObjectId,
+  order_id: ObjectId,   // Reference to Orders
+  user_id: ObjectId,    // Reference to Users
   amount: Number,
-  payment_method: String,      // "bank_transfer", "momo", etc.
-  payment_proof: String,       // URL đến ảnh chứng từ thanh toán
-  confirmation_status: String, // "pending", "confirmed", "rejected"
-  confirmed_by: ObjectId,      // Admin xác nhận thanh toán
+  payment_method: String,
+  payment_proof: String, // URL to uploaded proof
+  confirmation_status: String, // pending, approved, rejected
+  confirmed_by: ObjectId, // Reference to Users (admin)
   confirmed_at: Date,
   created_at: Date,
   updated_at: Date
 }
 ```
 
-### 29. Alerts
+### Collection: Alerts
 ```javascript
 {
   _id: ObjectId,
-  user_id: ObjectId,
-  plan_id: ObjectId,          // Tham chiếu đến UserPlans (nếu có)
-  type: String,               // "expiry_reminder", "grace_period", "service_suspended", etc.
+  user_id: ObjectId,    // Reference to Users
+  plan_id: ObjectId,    // Reference to UserPlans (optional)
+  type: String,         // expiry, low_balance, bandwidth_low
   message: String,
-  data: Object,               // Dữ liệu tùy theo loại thông báo
+  data: {               // Additional data depending on alert type
+    expiry_date: Date,
+    remaining_gb: Number,
+    current_balance: Number
+  },
   triggered_at: Date,
   is_read: Boolean,
   notification_sent: Boolean,
-  notification_method: String // "email", "dashboard", "both"
-} 
+  notification_method: String, // email, dashboard, both
+  created_at: Date
+}
+```
+
+## Quan hệ giữa các Collection
+
+### Quan hệ chính
+1. Users → Roles (nhiều-nhiều thông qua UserRoles)
+2. Roles → Permissions (nhiều-nhiều thông qua RolePermissions)
+3. Users → ResellerDetails (một-một)
+4. Users → Wallets (một-một)
+5. Wallets → WalletTransactions (một-nhiều)
+6. Users → Orders (một-nhiều)
+7. Orders → OrderItems (một-nhiều)
+8. Orders → UserPlans (một-nhiều)
+9. UserPlans → StaticProxyPlans/BandwidthPlans (một-một)
+10. StaticProxyPlans → Proxies (nhiều-nhiều)
+11. BandwidthPlans → ProxyPools (nhiều-nhiều)
+
+### Quan hệ phân cấp người dùng
+- Users.parent_id → Users: Cấu trúc đa cấp reseller-customer
+
+## Index chính cần tạo
+
+```javascript
+// Users
+db.users.createIndex({ username: 1 }, { unique: true })
+db.users.createIndex({ email: 1 }, { unique: true })
+db.users.createIndex({ api_key: 1 }, { unique: true, sparse: true })
+db.users.createIndex({ parent_id: 1 })
+db.users.createIndex({ user_level: 1 })
+
+// Wallets
+db.wallets.createIndex({ user_id: 1 }, { unique: true })
+
+// WalletTransactions
+db.walletTransactions.createIndex({ wallet_id: 1 })
+db.walletTransactions.createIndex({ user_id: 1 })
+db.walletTransactions.createIndex({ created_at: -1 })
+
+// Proxies
+db.proxies.createIndex({ ip: 1, port: 1 }, { unique: true })
+db.proxies.createIndex({ country: 1 })
+db.proxies.createIndex({ status: 1 })
+db.proxies.createIndex({ assigned: 1 })
+db.proxies.createIndex({ current_user_id: 1 })
+
+// UserPlans
+db.userPlans.createIndex({ user_id: 1 })
+db.userPlans.createIndex({ end_date: 1 })
+db.userPlans.createIndex({ active: 1 })
+
+// Orders
+db.orders.createIndex({ user_id: 1 })
+db.orders.createIndex({ order_number: 1 }, { unique: true })
+db.orders.createIndex({ created_at: -1 })
+
+// ProxyUsageLogs
+db.proxyUsageLogs.createIndex({ user_id: 1 })
+db.proxyUsageLogs.createIndex({ plan_id: 1 })
+db.proxyUsageLogs.createIndex({ timestamp: -1 })
+db.proxyUsageLogs.createIndex({ proxy_id: 1 })
+
+// Alerts
+db.alerts.createIndex({ user_id: 1 })
+db.alerts.createIndex({ is_read: 1 })
+db.alerts.createIndex({ triggered_at: -1 })
+```
+
+## Khởi tạo dữ liệu ban đầu
+
+### Vai trò mặc định
+```javascript
+const defaultRoles = [
+  {
+    name: "Admin",
+    description: "System administrator with full access",
+    level: 0,
+    is_admin: true,
+    is_reseller: false
+  },
+  {
+    name: "Manager",
+    description: "System manager with limited administrative access",
+    level: 1,
+    is_admin: true,
+    is_reseller: false
+  },
+  {
+    name: "Reseller",
+    description: "Can sell proxies and manage customers",
+    level: 2,
+    is_admin: false,
+    is_reseller: true
+  },
+  {
+    name: "Customer",
+    description: "Regular end user",
+    level: 3,
+    is_admin: false,
+    is_reseller: false
+  }
+];
+```
+
+### Quyền mặc định
+```javascript
+const defaultPermissions = [
+  // User Management
+  {
+    name: "Manage Users",
+    code: "manage_users",
+    description: "Create, edit, view users",
+    group: "user"
+  },
+  {
+    name: "View Users",
+    code: "view_users",
+    description: "View users only",
+    group: "user"
+  },
+  
+  // Proxy Management
+  {
+    name: "Manage Proxies",
+    code: "manage_proxies",
+    description: "Add, edit, delete proxies",
+    group: "proxy"
+  },
+  {
+    name: "View Proxies",
+    code: "view_proxies",
+    description: "View proxy details",
+    group: "proxy"
+  },
+  
+  // Finance Management
+  {
+    name: "Manage Finances",
+    code: "manage_finances",
+    description: "Manage financial transactions",
+    group: "finance"
+  },
+  {
+    name: "Approve Withdrawals",
+    code: "approve_withdrawals",
+    description: "Approve withdrawal requests",
+    group: "finance"
+  },
+  
+  // Orders Management
+  {
+    name: "Manage Orders",
+    code: "manage_orders",
+    description: "Create, edit, cancel orders",
+    group: "order"
+  },
+  {
+    name: "View Orders",
+    code: "view_orders",
+    description: "View orders",
+    group: "order"
+  }
+];
+```
+
+### Gói dịch vụ mặc định
+```javascript
+const defaultPackages = [
+  // Static proxies - Datacenter
+  {
+    name: "Datacenter Static - Basic",
+    description: "5 dedicated datacenter proxies",
+    type: "static",
+    category: "datacenter",
+    protocol: "http",
+    is_rotating: false,
+    is_bandwidth: false,
+    duration_days: 30,
+    price: 250000,
+    features: ["dedicated_ip", "unlimited_bandwidth", "high_speed"]
+  },
+  
+  // Static proxies - Residential
+  {
+    name: "Residential Static - Basic",
+    description: "3 dedicated residential proxies",
+    type: "static",
+    category: "residential",
+    protocol: "http",
+    is_rotating: false,
+    is_bandwidth: false,
+    duration_days: 30,
+    price: 450000,
+    features: ["dedicated_ip", "unlimited_bandwidth", "high_anonymity"]
+  },
+  
+  // Rotating proxies
+  {
+    name: "Datacenter Rotating - Basic",
+    description: "Rotating datacenter proxies",
+    type: "rotating",
+    category: "datacenter",
+    protocol: "http",
+    is_rotating: true,
+    is_bandwidth: false,
+    duration_days: 30,
+    price: 350000,
+    features: ["rotating_ip", "unlimited_bandwidth", "custom_rotation"]
+  },
+  
+  // Bandwidth model
+  {
+    name: "Residential Bandwidth - 5GB",
+    description: "5GB residential bandwidth",
+    type: "bandwidth",
+    category: "residential",
+    protocol: "http",
+    is_rotating: true,
+    is_bandwidth: true,
+    duration_days: 30,
+    price: 500000,
+    features: ["high_anonymity", "global_access", "all_countries"]
+  }
+];
+``` 
