@@ -376,6 +376,61 @@ const seedProxies = async (db) => {
   }
 };
 
+// Seed proxy pools
+const seedProxyPools = async (db) => {
+  try {
+    const pools = [
+      {
+        name: "Datacenter Pool - Global",
+        description: "Datacenter proxies with global distribution",
+        group: "datacenter",
+        countries: ["US", "GB", "DE"],
+        isps: ["Amazon", "Google"],
+        connection_types: ["datacenter"],
+        proxy_count: 1000,
+        active_proxy_count: 950,
+        entry_point: "dc.proxy-server.com",
+        port_range: {
+          start: 10000,
+          end: 19999
+        },
+        username: "user",
+        password: "pass",
+        is_bandwidth_pool: false,
+        active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        name: "Residential Pool - Asia",
+        description: "Residential proxies focused on Asian countries",
+        group: "residential-asia",
+        countries: ["JP", "KR", "VN"],
+        isps: ["VNPT", "Viettel", "NTT"],
+        connection_types: ["residential"],
+        proxy_count: 300,
+        active_proxy_count: 280,
+        entry_point: "asia.proxy-server.com",
+        port_range: {
+          start: 30000,
+          end: 39999
+        },
+        username: "user",
+        password: "pass",
+        is_bandwidth_pool: true,
+        active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    ];
+    
+    const result = await db.collection('proxyPools').insertMany(pools);
+    console.log(`Proxy pools seeded successfully: ${result.insertedCount}`);
+  } catch (error) {
+    console.error(`Error seeding proxy pools: ${error.message}`);
+  }
+};
+
 // Seed product packages
 const seedProductPackages = async (db) => {
   try {
@@ -495,61 +550,6 @@ const seedProductPackages = async (db) => {
     console.log(`Product packages seeded successfully: ${result.insertedCount}`);
   } catch (error) {
     console.error(`Error seeding product packages: ${error.message}`);
-  }
-};
-
-// Seed proxy pools
-const seedProxyPools = async (db) => {
-  try {
-    const pools = [
-      {
-        name: "Datacenter Pool - Global",
-        description: "Datacenter proxies with global distribution",
-        group: "datacenter",
-        countries: ["US", "GB", "DE"],
-        isps: ["Amazon", "Google"],
-        connection_types: ["datacenter"],
-        proxy_count: 1000,
-        active_proxy_count: 950,
-        entry_point: "dc.proxy-server.com",
-        port_range: {
-          start: 10000,
-          end: 19999
-        },
-        username: "user",
-        password: "pass",
-        is_bandwidth_pool: false,
-        active: true,
-        created_at: new Date(),
-        updated_at: new Date()
-      },
-      {
-        name: "Residential Pool - Asia",
-        description: "Residential proxies focused on Asian countries",
-        group: "residential-asia",
-        countries: ["JP", "KR", "VN"],
-        isps: ["VNPT", "Viettel", "NTT"],
-        connection_types: ["residential"],
-        proxy_count: 300,
-        active_proxy_count: 280,
-        entry_point: "asia.proxy-server.com",
-        port_range: {
-          start: 30000,
-          end: 39999
-        },
-        username: "user",
-        password: "pass",
-        is_bandwidth_pool: true,
-        active: true,
-        created_at: new Date(),
-        updated_at: new Date()
-      }
-    ];
-    
-    const result = await db.collection('proxyPools').insertMany(pools);
-    console.log(`Proxy pools seeded successfully: ${result.insertedCount}`);
-  } catch (error) {
-    console.error(`Error seeding proxy pools: ${error.message}`);
   }
 };
 

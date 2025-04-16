@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -6,11 +6,11 @@ import {
   Button,
   TextField,
   Box,
-  Grid,
   Typography,
   Alert,
   Container,
-  Paper
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 
@@ -20,13 +20,19 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    fullname: '',
-    phone: ''
+    fullname: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    // Nếu đã đăng nhập, chuyển hướng đến dashboard
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,24 +42,17 @@ const Register = () => {
     });
   };
 
-  const validateForm = () => {
-    if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
-      return false;
-    }
-    
-    if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
-      return false;
-    }
-    
-    return true;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    // Validate
+    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword || !formData.fullname) {
+      setError('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
       return;
     }
     
@@ -61,150 +60,129 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register(
-        formData.username,
-        formData.email,
-        formData.password,
-        formData.fullname,
-        formData.phone
-      );
-      navigate('/login');
+      await register({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        fullname: formData.fullname
+      });
+      
+      // Chuyển hướng đến trang đăng nhập với thông báo thành công
+      navigate('/login?message=Đăng ký thành công! Vui lòng đăng nhập.&type=success');
     } catch (error) {
-      setError(error.response?.data?.message || 'Đăng ký thất bại');
+      console.error('Register error:', error);
+      setError(error.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="lg">
-      <Grid container sx={{ height: '100vh' }}>
-        <Grid
-          item
-          xs={false}
-          sm={4}
-          md={7}
-          sx={{
-            backgroundImage: 'url(https://source.unsplash.com/random?technology,security)',
-            backgroundRepeat: 'no-repeat',
-            backgroundColor: (t) => t.palette.grey[50],
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
-        <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
-          <Box
-            sx={{
-              my: 8,
-              mx: 4,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
+    <Container component="main" maxWidth="xs">
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          p: 4, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          mt: 8
+        }}
+      >
+        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
+          <PersonAddAltIcon />
+        </Avatar>
+        <Typography component="h1" variant="h5">
+          Đăng ký tài khoản
+        </Typography>
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+            {error}
+          </Alert>
+        )}
+        <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 3, width: '100%' }}>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="username"
+            label="Tên đăng nhập"
+            name="username"
+            autoComplete="username"
+            autoFocus
+            value={formData.username}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email"
+            name="email"
+            autoComplete="email"
+            value={formData.email}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Mật khẩu"
+            type="password"
+            id="password"
+            value={formData.password}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="confirmPassword"
+            label="Xác nhận mật khẩu"
+            type="password"
+            id="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="fullname"
+            label="Họ và tên"
+            id="fullname"
+            value={formData.fullname}
+            onChange={handleChange}
+            disabled={loading}
+          />
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            color="primary"
+            sx={{ mt: 3, mb: 2, py: 1.5 }}
+            disabled={loading}
           >
-            <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-              <PersonAddAltIcon />
-            </Avatar>
-            <Typography component="h1" variant="h5">
-              Đăng ký tài khoản
-            </Typography>
-            {error && (
-              <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
-                {error}
-              </Alert>
-            )}
-            <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 3 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    name="fullname"
-                    required
-                    fullWidth
-                    id="fullname"
-                    label="Họ và tên"
-                    autoFocus
-                    value={formData.fullname}
-                    onChange={handleChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="username"
-                    label="Tên đăng nhập"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="email"
-                    label="Email"
-                    name="email"
-                    autoComplete="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    name="password"
-                    label="Mật khẩu"
-                    type="password"
-                    id="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    required
-                    fullWidth
-                    name="confirmPassword"
-                    label="Xác nhận mật khẩu"
-                    type="password"
-                    id="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    name="phone"
-                    label="Số điện thoại"
-                    id="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                  />
-                </Grid>
-              </Grid>
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2 }}
-                disabled={loading}
-              >
-                {loading ? 'Đang xử lý...' : 'Đăng ký'}
-              </Button>
-              <Grid container justifyContent="flex-end">
-                <Grid item>
-                  <Link to="/login" style={{ textDecoration: 'none' }}>
-                    Đã có tài khoản? Đăng nhập
-                  </Link>
-                </Grid>
-              </Grid>
-            </Box>
+            {loading ? <CircularProgress size={24} /> : 'Đăng ký'}
+          </Button>
+          <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <Link to="/login" style={{ textDecoration: 'none' }}>
+              Đã có tài khoản? Đăng nhập
+            </Link>
           </Box>
-        </Grid>
-      </Grid>
+          <Box mt={4}>
+            <Typography variant="body2" color="text.secondary" align="center">
+              © {new Date().getFullYear()} Proxy Server
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
     </Container>
   );
 };

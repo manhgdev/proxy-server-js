@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   AppBar,
@@ -18,7 +18,8 @@ import {
   Menu,
   MenuItem,
   Avatar,
-  Button
+  Button,
+  Collapse
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -29,25 +30,29 @@ import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import RouterIcon from '@mui/icons-material/Router';
+import DevicesIcon from '@mui/icons-material/Devices';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import PersonIcon from '@mui/icons-material/Person';
 
 const drawerWidth = 240;
 
 const Layout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [proxyMenuOpen, setProxyMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   
-  const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Proxy', icon: <VpnKeyIcon />, path: '/proxies' },
-    { text: 'Đơn hàng', icon: <ShoppingCartIcon />, path: '/orders' },
-    { text: 'Ví tiền', icon: <AccountBalanceWalletIcon />, path: '/wallet' },
-  ];
-  
-  const adminMenuItems = [
-    { text: 'Quản lý người dùng', icon: <PeopleIcon />, path: '/admin/users' },
-    { text: 'Cài đặt hệ thống', icon: <SettingsIcon />, path: '/admin/settings' },
+  const navItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/user/dashboard' },
+    { text: 'Proxies của tôi', icon: <RouterIcon />, path: '/user/proxies' },
+    { text: 'Đơn hàng', icon: <ReceiptIcon />, path: '/user/orders' },
+    { text: 'Ví tiền', icon: <AccountBalanceWalletIcon />, path: '/user/wallet' },
+    { text: 'Hồ sơ', icon: <PersonIcon />, path: '/user/profile' },
   ];
 
   const handleDrawerToggle = () => {
@@ -72,6 +77,14 @@ const Layout = () => {
     navigate('/profile');
   };
 
+  const handleToggleProxyMenu = () => {
+    setProxyMenuOpen(!proxyMenuOpen);
+  };
+  
+  const isActive = (path) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
   const drawer = (
     <div>
       <Toolbar>
@@ -81,34 +94,53 @@ const Layout = () => {
       </Toolbar>
       <Divider />
       <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton component={Link} to={item.path}>
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-      {user && (user.is_admin || user.user_level === 0) && (
-        <>
-          <Divider />
-          <List>
-            {adminMenuItems.map((item) => (
-              <ListItem key={item.text} disablePadding>
-                <ListItemButton component={Link} to={item.path}>
+        {navItems.map((item) => (
+          item.hasSubmenu ? (
+            <React.Fragment key={item.text}>
+              <ListItem disablePadding>
+                <ListItemButton onClick={handleToggleProxyMenu}>
                   <ListItemIcon>
                     {item.icon}
                   </ListItemIcon>
                   <ListItemText primary={item.text} />
+                  {proxyMenuOpen ? <ExpandLess /> : <ExpandMore />}
                 </ListItemButton>
               </ListItem>
-            ))}
-          </List>
-        </>
-      )}
+              <Collapse in={proxyMenuOpen} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  {item.submenu.map((subItem) => (
+                    <ListItemButton 
+                      key={subItem.text} 
+                      component={Link} 
+                      to={subItem.path}
+                      selected={isActive(subItem.path)}
+                      sx={{ pl: 4 }}
+                    >
+                      <ListItemIcon>
+                        {subItem.icon}
+                      </ListItemIcon>
+                      <ListItemText primary={subItem.text} />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Collapse>
+            </React.Fragment>
+          ) : (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton 
+                component={Link} 
+                to={item.path}
+                selected={isActive(item.path)}
+              >
+                <ListItemIcon>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          )
+        ))}
+      </List>
     </div>
   );
 
@@ -137,7 +169,12 @@ const Layout = () => {
           </Typography>
           
           {user ? (
-            <div>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {user && (user.is_admin || user.user_level === 0) && (
+                <Button color="inherit" component={Link} to="/admin" sx={{ mr: 2 }}>
+                  Truy cập quản trị
+                </Button>
+              )}
               <Button
                 onClick={handleProfileMenuOpen}
                 color="inherit"
@@ -178,7 +215,7 @@ const Layout = () => {
                   <Typography variant="inherit">Đăng xuất</Typography>
                 </MenuItem>
               </Menu>
-            </div>
+            </Box>
           ) : (
             <Button color="inherit" component={Link} to="/login">
               Đăng nhập

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
 // Context
@@ -25,13 +26,18 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('accessToken');
       if (token) {
         try {
-          // TODO: Implement user profile fetch
-          // For now we'll use stored user info
-          const storedUser = JSON.parse(localStorage.getItem('user'));
-          if (storedUser) {
-            setUser(storedUser);
+          // Gọi API để lấy thông tin user
+          const response = await authAPI.me();
+          if (response.data && response.data.data && response.data.data.user) {
+            setUser(response.data.data.user);
           } else {
-            logout();
+            // Fallback nếu API không trả về user
+            const storedUser = JSON.parse(localStorage.getItem('user'));
+            if (storedUser) {
+              setUser(storedUser);
+            } else {
+              logout();
+            }
           }
         } catch (err) {
           console.error('Failed to initialize auth:', err);
@@ -50,16 +56,25 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await authAPI.login(credentials);
-      const { access_token, refresh_token, user: userData } = response.data.data;
       
-      localStorage.setItem('accessToken', access_token);
-      localStorage.setItem('refreshToken', refresh_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      setUser(userData);
-      return userData;
+      // Kiểm tra cấu trúc response từ server 
+      if (response.data && (response.data.data || response.data.status === 'success')) {
+        const userData = response.data.data.user;
+        const accessToken = response.data.data.access_token;
+        const refreshToken = response.data.data.refresh_token;
+        
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setUser(userData);
+        return userData;
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+      setError(errorMessage);
       throw err;
     } finally {
       setLoading(false);
@@ -74,7 +89,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.register(userData);
       return response.data;
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
       throw err;
     } finally {
       setLoading(false);

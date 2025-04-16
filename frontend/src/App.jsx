@@ -14,6 +14,13 @@ import Dashboard from './pages/Dashboard';
 import NotFound from './pages/NotFound';
 import Layout from './components/Layout';
 import Loading from './components/Loading';
+import HomePage from './pages/HomePage';
+
+// Admin pages
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/Dashboard';
+import ProxyManagement from './pages/admin/ProxyManagement';
+import ProxyPoolsManagement from './pages/admin/ProxyPoolsManagement';
 
 // Tạo theme
 const theme = createTheme({
@@ -47,7 +54,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
   
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
   
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
@@ -78,30 +85,32 @@ const App = () => {
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/" element={<HomePage />} />
+              
+              {/* Admin routes */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="proxies" element={<ProxyManagement />} />
+                <Route path="proxy-pools" element={<ProxyPoolsManagement />} />
+                <Route path="users" element={<TempPage title="Quản lý người dùng" />} />
+                <Route path="orders" element={<TempPage title="Quản lý đơn hàng" />} />
+                <Route path="packages" element={<TempPage title="Quản lý gói dịch vụ" />} />
+                <Route path="settings" element={<TempPage title="Cài đặt hệ thống" />} />
+              </Route>
               
               {/* Protected routes */}
-              <Route path="/" element={
+              <Route path="/user" element={
                 <ProtectedRoute>
                   <Layout />
                 </ProtectedRoute>
               }>
-                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route index element={<Dashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="proxies" element={<TempPage title="Danh sách Proxy" />} />
                 <Route path="proxies/:id" element={<TempPage title="Chi tiết Proxy" />} />
                 <Route path="profile" element={<TempPage title="Hồ sơ người dùng" />} />
                 <Route path="orders" element={<TempPage title="Quản lý đơn hàng" />} />
                 <Route path="wallet" element={<TempPage title="Ví tiền" />} />
-                <Route path="admin/users" element={
-                  <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                    <TempPage title="Quản lý người dùng" />
-                  </ProtectedRoute>
-                } />
-                <Route path="admin/settings" element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <TempPage title="Cài đặt hệ thống" />
-                  </ProtectedRoute>
-                } />
               </Route>
               
               {/* 404 Not Found */}

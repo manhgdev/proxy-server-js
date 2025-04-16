@@ -17,11 +17,11 @@ export const getResellerProfile = async (req, res, next) => {
     const userId = req.user.id;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
+    const isReseller = req.user.is_admin || req.user.user_level === 0 || req.user.is_reseller || 
                        req.user.roles.some(role => 
                          typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
+                           ? role.toLowerCase() === 'reseller' || role.toLowerCase() === 'admin'
+                           : (role.name && (role.name.toLowerCase() === 'reseller' || role.name.toLowerCase() === 'admin'))
                        );
     
     if (!isReseller) {
@@ -63,11 +63,11 @@ export const updateResellerProfile = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
+    const isReseller = req.user.is_admin || req.user.user_level === 0 || req.user.is_reseller || 
                        req.user.roles.some(role => 
                          typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
+                           ? role.toLowerCase() === 'reseller' || role.toLowerCase() === 'admin'
+                           : (role.name && (role.name.toLowerCase() === 'reseller' || role.name.toLowerCase() === 'admin'))
                        );
     
     if (!isReseller) {
@@ -124,11 +124,11 @@ export const getResellerCustomers = async (req, res, next) => {
     const { page = 1, limit = 10, search } = req.query;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
+    const isReseller = req.user.is_admin || req.user.user_level === 0 || req.user.is_reseller || 
                        req.user.roles.some(role => 
                          typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
+                           ? role.toLowerCase() === 'reseller' || role.toLowerCase() === 'admin'
+                           : (role.name && (role.name.toLowerCase() === 'reseller' || role.name.toLowerCase() === 'admin'))
                        );
     
     if (!isReseller) {
@@ -199,11 +199,11 @@ export const createCustomer = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
+    const isReseller = req.user.is_admin || req.user.user_level === 0 || req.user.is_reseller || 
                        req.user.roles.some(role => 
                          typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
+                           ? role.toLowerCase() === 'reseller' || role.toLowerCase() === 'admin'
+                           : (role.name && (role.name.toLowerCase() === 'reseller' || role.name.toLowerCase() === 'admin'))
                        );
     
     if (!isReseller) {
@@ -291,11 +291,11 @@ export const getCommissionHistory = async (req, res, next) => {
     const { page = 1, limit = 10, start_date, end_date } = req.query;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
+    const isReseller = req.user.is_admin || req.user.user_level === 0 || req.user.is_reseller || 
                        req.user.roles.some(role => 
                          typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
+                           ? role.toLowerCase() === 'reseller' || role.toLowerCase() === 'admin'
+                           : (role.name && (role.name.toLowerCase() === 'reseller' || role.name.toLowerCase() === 'admin'))
                        );
     
     if (!isReseller) {
@@ -383,11 +383,11 @@ export const requestWithdrawal = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
+    const isReseller = req.user.is_admin || req.user.user_level === 0 || req.user.is_reseller || 
                        req.user.roles.some(role => 
                          typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
+                           ? role.toLowerCase() === 'reseller' || role.toLowerCase() === 'admin'
+                           : (role.name && (role.name.toLowerCase() === 'reseller' || role.name.toLowerCase() === 'admin'))
                        );
     
     if (!isReseller) {
@@ -447,18 +447,24 @@ export const requestWithdrawal = async (req, res, next) => {
  */
 export const getResellerStats = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    // Kiểm tra người dùng có quyền truy cập và lấy userId (của reseller)
+    let userId = req.user.id;
+    const isAdmin = req.user.is_admin || req.user.user_level === 0 || req.user.roles.some(role => 
+      typeof role === 'string' ? role.toLowerCase() === 'admin' : (role.name && role.name.toLowerCase() === 'admin')
+    );
     
-    // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.is_reseller || 
-                       req.user.roles.some(role => 
-                         typeof role === 'string' 
-                           ? role.toLowerCase() === 'reseller' 
-                           : (role.name && role.name.toLowerCase() === 'reseller')
-                       );
-    
-    if (!isReseller) {
-      throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
+    // Nếu là admin và có reseller_id trong query, lấy thông tin của reseller đó
+    if (isAdmin && req.query.reseller_id) {
+      userId = req.query.reseller_id;
+    } else {
+      // Kiểm tra người dùng có phải là đại lý
+      const isReseller = req.user.is_reseller || req.user.roles.some(role => 
+        typeof role === 'string' ? role.toLowerCase() === 'reseller' : (role.name && role.name.toLowerCase() === 'reseller')
+      );
+      
+      if (!isReseller && !isAdmin) {
+        throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
+      }
     }
     
     // Lấy thông tin đại lý
