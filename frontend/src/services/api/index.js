@@ -1,23 +1,33 @@
-import api from './client';
 import authAPI from './auth';
-import userAPI from './users';
-import proxyAPI from './proxies';
-import proxyPoolAPI from './proxyPools';
-import orderAPI from './orders';
+import packagesAPI from './packages';
+import proxiesAPI from './proxies';
+import ordersAPI from './orders';
 import walletAPI from './wallet';
-import packageAPI from './packages';
-import adminAPI from './admin';
+import usersAPI from './users';
 import dashboardAPI from './dashboard';
+import adminAPI from './admin';
+import proxyPoolAPI from './proxyPools';
 
 export {
-  api as default,
   authAPI,
-  userAPI,
-  proxyAPI,
-  proxyPoolAPI,
-  orderAPI,
+  packagesAPI,
+  proxiesAPI,
+  ordersAPI,
   walletAPI,
-  packageAPI,
+  usersAPI,
+  dashboardAPI,
   adminAPI,
-  dashboardAPI
+  proxyPoolAPI
+};
+
+export default {
+  authAPI,
+  packagesAPI,
+  proxiesAPI,
+  ordersAPI,
+  walletAPI,
+  usersAPI,
+  dashboardAPI,
+  adminAPI,
+  proxyPoolAPI
 }; 

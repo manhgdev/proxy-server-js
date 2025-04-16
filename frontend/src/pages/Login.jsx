@@ -33,7 +33,7 @@ const Login = () => {
   // Chuyển hướng nếu đã đăng nhập
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard');
+      navigate('/user/dashboard');
     }
     
     // Kiểm tra thông báo từ trang khác chuyển đến
@@ -67,7 +67,7 @@ const Login = () => {
         username: formData.username,
         password: formData.password
       });
-      navigate('/dashboard');
+      navigate('/user/dashboard');
     } catch (error) {
       console.error('Login error:', error);
       setError(error.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.');

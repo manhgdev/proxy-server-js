@@ -1,50 +1,58 @@
 import api from './client';
 
 /**
- * API liên quan đến quản lý gói sản phẩm
+ * API liên quan đến quản lý gói dịch vụ proxy
  */
-const packageAPI = {
+const packagesAPI = {
   /**
-   * Lấy danh sách gói sản phẩm
-   * @param {Object} params - Tham số truy vấn
+   * Lấy danh sách gói proxy
+   * @param {Object} params - Tham số truy vấn {type, category}
    * @returns {Promise}
    */
   getPackages: (params) => api.get('/packages', { params }),
   
   /**
-   * Lấy danh sách gói sản phẩm đang hoạt động
+   * Lấy danh sách gói proxy đang hoạt động
    * @returns {Promise}
    */
-  getActivePackages: () => api.get('/packages/active'),
+  getActivePackages: () => api.get('/packages', { params: { active: true } }),
   
   /**
-   * Lấy thông tin chi tiết gói sản phẩm
-   * @param {string} id - ID gói sản phẩm
+   * Lấy chi tiết gói proxy
+   * @param {string} packageId - ID gói dịch vụ
    * @returns {Promise}
    */
-  getPackageById: (id) => api.get(`/packages/${id}`),
+  getPackageById: (packageId) => api.get(`/packages/${packageId}`),
   
   /**
-   * Tạo gói sản phẩm mới (Admin)
-   * @param {Object} packageData - Thông tin gói sản phẩm
+   * Tạo gói dịch vụ mới (admin only)
+   * @param {Object} packageData - Thông tin gói dịch vụ
    * @returns {Promise}
    */
-  createPackage: (packageData) => api.post('/packages', packageData),
+  createPackage: (packageData) => api.post('/admin/packages', packageData),
   
   /**
-   * Cập nhật gói sản phẩm (Admin)
-   * @param {string} id - ID gói sản phẩm
+   * Cập nhật gói dịch vụ (admin only)
+   * @param {string} packageId - ID gói dịch vụ
    * @param {Object} packageData - Thông tin cập nhật
    * @returns {Promise}
    */
-  updatePackage: (id, packageData) => api.put(`/packages/${id}`, packageData),
+  updatePackage: (packageId, packageData) => api.put(`/admin/packages/${packageId}`, packageData),
   
   /**
-   * Xóa gói sản phẩm (Admin)
-   * @param {string} id - ID gói sản phẩm
+   * Xóa gói dịch vụ (admin only)
+   * @param {string} packageId - ID gói dịch vụ
    * @returns {Promise}
    */
-  deletePackage: (id) => api.delete(`/packages/${id}`),
+  deletePackage: (packageId) => api.delete(`/admin/packages/${packageId}`),
+  
+  /**
+   * Kích hoạt/vô hiệu hóa gói dịch vụ (admin only)
+   * @param {string} packageId - ID gói dịch vụ
+   * @param {boolean} isActive - Trạng thái kích hoạt
+   * @returns {Promise}
+   */
+  togglePackageStatus: (packageId, isActive) => api.put(`/admin/packages/${packageId}/status`, { active: isActive }),
 };
 
-export default packageAPI; 
+export default packagesAPI; 

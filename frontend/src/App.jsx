@@ -15,6 +15,9 @@ import NotFound from './pages/NotFound';
 import Layout from './components/Layout';
 import Loading from './components/Loading';
 import HomePage from './pages/HomePage';
+import MyProxies from './pages/MyProxies';
+import ProxyShop from './pages/ProxyShop';
+import Wallet from './pages/Wallet';
 
 // Admin pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -106,11 +109,11 @@ const App = () => {
               }>
                 <Route index element={<Dashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="proxies" element={<TempPage title="Danh sách Proxy" />} />
-                <Route path="proxies/:id" element={<TempPage title="Chi tiết Proxy" />} />
-                <Route path="profile" element={<TempPage title="Hồ sơ người dùng" />} />
+                <Route path="proxies" element={<MyProxies />} />
                 <Route path="orders" element={<TempPage title="Quản lý đơn hàng" />} />
-                <Route path="wallet" element={<TempPage title="Ví tiền" />} />
+                <Route path="orders/new" element={<ProxyShop />} />
+                <Route path="wallet" element={<Wallet />} />
+                <Route path="profile" element={<TempPage title="Hồ sơ người dùng" />} />
               </Route>
               
               {/* 404 Not Found */}

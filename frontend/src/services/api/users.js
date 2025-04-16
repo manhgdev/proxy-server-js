@@ -3,110 +3,93 @@ import api from './client';
 /**
  * API liên quan đến quản lý người dùng
  */
-const userAPI = {
+const usersAPI = {
   /**
-   * Lấy danh sách người dùng
-   * @param {Object} params - Tham số truy vấn
+   * Lấy thông tin người dùng hiện tại
    * @returns {Promise}
    */
-  getUsers: (params) => api.get('/users', { params }),
-  
-  /**
-   * Tìm kiếm người dùng
-   * @param {Object} params - Tham số tìm kiếm
-   * @returns {Promise}
-   */
-  searchUsers: (params) => api.get('/users/search', { params }),
-  
-  /**
-   * Lấy thông tin chi tiết người dùng
-   * @param {string} id - ID người dùng
-   * @returns {Promise}
-   */
-  getUserById: (id) => api.get(`/users/${id}`),
-  
-  /**
-   * Tạo người dùng mới
-   * @param {Object} userData - Thông tin người dùng
-   * @returns {Promise}
-   */
-  createUser: (userData) => api.post('/users', userData),
+  getProfile: () => api.get('/users/profile'),
   
   /**
    * Cập nhật thông tin người dùng
-   * @param {string} id - ID người dùng
-   * @param {Object} userData - Thông tin cập nhật
+   * @param {Object} userData - Thông tin cần cập nhật {email, fullname, phone}
    * @returns {Promise}
    */
-  updateUser: (id, userData) => api.put(`/users/${id}`, userData),
+  updateProfile: (userData) => api.put('/users/profile', userData),
   
   /**
-   * Xóa người dùng
-   * @param {string} id - ID người dùng
+   * Đổi mật khẩu
+   * @param {Object} passwordData - {oldPassword, newPassword}
    * @returns {Promise}
    */
-  deleteUser: (id) => api.delete(`/users/${id}`),
+  changePassword: (passwordData) => api.put('/users/change-password', passwordData),
   
   /**
-   * Cập nhật hồ sơ cá nhân
-   * @param {Object} profileData - Thông tin hồ sơ
+   * Tạo API key mới
    * @returns {Promise}
    */
-  updateProfile: (profileData) => api.put('/users/profile/update', profileData),
+  generateApiKey: () => api.post('/users/api-key/generate'),
   
   /**
-   * Lấy danh sách gói dịch vụ của người dùng
-   * @param {string} id - ID người dùng
+   * Lấy danh sách người dùng (admin only)
+   * @param {number} page - Trang hiện tại
+   * @param {number} limit - Số lượng item mỗi trang
    * @returns {Promise}
    */
-  getUserPlans: (id) => api.get(`/users/${id}/plans`),
+  getAllUsers: (page = 1, limit = 10) => api.get(`/admin/users?page=${page}&limit=${limit}`),
   
   /**
-   * Lấy danh sách vai trò của người dùng
-   * @param {string} id - ID người dùng
+   * Lấy thông tin chi tiết người dùng theo ID (admin only)
+   * @param {string} userId - ID người dùng
    * @returns {Promise}
    */
-  getUserRoles: (id) => api.get(`/users/${id}/roles`),
+  getUserById: (userId) => api.get(`/admin/users/${userId}`),
   
   /**
-   * Lấy danh sách quyền hạn của người dùng
-   * @param {string} id - ID người dùng
+   * Cập nhật người dùng (admin only)
+   * @param {string} userId - ID người dùng
+   * @param {Object} userData - Dữ liệu cập nhật
    * @returns {Promise}
    */
-  getUserPermissions: (id) => api.get(`/users/${id}/permissions`),
+  updateUser: (userId, userData) => api.put(`/admin/users/${userId}`, userData),
   
   /**
-   * Xem API key của người dùng hiện tại
+   * Kích hoạt/vô hiệu hóa người dùng (admin only)
+   * @param {string} userId - ID người dùng
+   * @param {boolean} isActive - Trạng thái kích hoạt
    * @returns {Promise}
    */
-  getApiKey: () => api.get('/users/me/api-key'),
+  toggleUserStatus: (userId, isActive) => api.put(`/admin/users/${userId}/status`, { active: isActive }),
   
   /**
-   * Tạo API key mới cho người dùng hiện tại
+   * Lấy danh sách roles (admin only)
    * @returns {Promise}
    */
-  createApiKey: () => api.post('/users/me/api-key'),
+  getRoles: () => api.get('/admin/roles'),
   
   /**
-   * Lấy danh sách đơn hàng của người dùng hiện tại
+   * Gán role cho người dùng (admin only)
+   * @param {string} userId - ID người dùng
+   * @param {string} roleId - ID role
    * @returns {Promise}
    */
-  getMyOrders: () => api.get('/users/me/orders'),
+  assignRoleToUser: (userId, roleId) => api.post(`/admin/users/${userId}/roles`, { role_id: roleId }),
   
   /**
-   * Lấy chi tiết đơn hàng của người dùng hiện tại
-   * @param {string} orderId - ID đơn hàng
+   * Gỡ bỏ role khỏi người dùng (admin only)
+   * @param {string} userId - ID người dùng
+   * @param {string} roleId - ID role
    * @returns {Promise}
    */
-  getMyOrderById: (orderId) => api.get(`/users/me/orders/${orderId}`),
+  removeRoleFromUser: (userId, roleId) => api.delete(`/admin/users/${userId}/roles/${roleId}`),
   
   /**
-   * Thay đổi mật khẩu người dùng
-   * @param {string} id - ID người dùng
-   * @param {Object} passwordData - Thông tin mật khẩu mới
+   * Nạp tiền vào ví người dùng (admin only)
+   * @param {string} userId - ID người dùng
+   * @param {Object} data - Dữ liệu nạp tiền {amount, note}
    * @returns {Promise}
    */
-  changePassword: (id, passwordData) => api.post(`/users/${id}/change-password`, passwordData),
+  creditWallet: (userId, data) => api.post(`/admin/users/${userId}/wallet/credit`, data),
 };
 
-export default userAPI; 
+export default usersAPI; 

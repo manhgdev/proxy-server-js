@@ -38,7 +38,7 @@ import {
   PlaylistAdd as PlaylistAddIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { proxyAPI, proxyPoolAPI, adminAPI } from '../../services/api';
+import { proxiesAPI, proxyPoolAPI, adminAPI } from '../../services/api';
 
 const ProxyManagement = () => {
   const [proxies, setProxies] = useState([]);
@@ -216,13 +216,13 @@ const ProxyManagement = () => {
           .map(proxy => proxy.trim())
           .filter(proxy => proxy !== '');
 
-        response = await proxyAPI.bulkImport({ proxies: proxyList });
+        response = await proxiesAPI.bulkImport({ proxies: proxyList });
       } else {
         // Thêm proxy từ file
         const formData = new FormData();
         formData.append('file', fileUploaded);
 
-        response = await proxyAPI.bulkImport(formData, {
+        response = await proxiesAPI.bulkImport(formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }

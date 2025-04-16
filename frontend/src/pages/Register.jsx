@@ -30,7 +30,7 @@ const Register = () => {
   useEffect(() => {
     // Nếu đã đăng nhập, chuyển hướng đến dashboard
     if (isAuthenticated) {
-      navigate('/dashboard');
+      navigate('/user/dashboard');
     }
   }, [isAuthenticated, navigate]);
 

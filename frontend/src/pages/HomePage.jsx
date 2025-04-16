@@ -38,7 +38,7 @@ import {
   CreditCard as CreditCardIcon,
   HowToReg as HowToRegIcon
 } from '@mui/icons-material';
-import { packageAPI } from '../services/api';
+import { packagesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 // Hero section background
@@ -64,7 +64,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchPackages = async () => {
       try {
-        const response = await packageAPI.getActivePackages();
+        const response = await packagesAPI.getActivePackages();
         if (response.data) {
           // Xử lý dữ liệu phân loại theo các loại proxy
           const data = response.data.data || response.data.packages || [];

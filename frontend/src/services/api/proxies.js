@@ -1,81 +1,91 @@
 import api from './client';
 
 /**
- * API liên quan đến quản lý proxy đơn lẻ
+ * API liên quan đến quản lý proxy
  */
-const proxyAPI = {
+const proxiesAPI = {
   /**
-   * Lấy danh sách proxy
-   * @param {Object} params - Tham số truy vấn
+   * Lấy danh sách proxy đang sử dụng
+   * @param {number} page - Số trang
+   * @param {number} limit - Số lượng kết quả mỗi trang
    * @returns {Promise}
    */
-  getProxies: (params) => api.get('/proxies', { params }),
+  getProxies: (page = 1, limit = 10) => api.get(`/proxies?page=${page}&limit=${limit}`),
   
   /**
-   * Lấy thông tin chi tiết proxy
-   * @param {string} id - ID proxy
+   * Kiểm tra tình trạng proxy
+   * @param {string} proxyId - ID proxy
    * @returns {Promise}
    */
-  getProxyById: (id) => api.get(`/proxies/${id}`),
+  checkProxyStatus: (proxyId) => api.get(`/proxies/${proxyId}/status`),
   
   /**
-   * Tạo proxy mới
-   * @param {Object} proxyData - Thông tin proxy
+   * Yêu cầu thay thế proxy
+   * @param {string} proxyId - ID proxy
+   * @param {Object} data - Thông tin yêu cầu
    * @returns {Promise}
    */
-  createProxy: (proxyData) => api.post('/proxies', proxyData),
+  replaceProxy: (proxyId, data) => api.post(`/proxies/${proxyId}/replace`, data),
   
   /**
-   * Cập nhật thông tin proxy
-   * @param {string} id - ID proxy
+   * Xoay proxy (cho Rotating Proxy)
+   * @param {string} planId - ID gói dịch vụ
+   * @returns {Promise}
+   */
+  rotateProxy: (planId) => api.post('/proxies/rotate', { plan_id: planId }),
+  
+  /**
+   * Lấy chi tiết gói proxy đã mua
+   * @param {string} planId - ID gói dịch vụ
+   * @returns {Promise}
+   */
+  getPlanDetails: (planId) => api.get(`/plans/${planId}`),
+  
+  /**
+   * Nạp thêm băng thông cho proxy (cho Bandwidth Proxy)
+   * @param {string} planId - ID gói proxy
+   * @param {Object} data - Thông tin nạp băng thông
+   * @returns {Promise}
+   */
+  topupBandwidth: (planId, data) => api.post(`/plans/${planId}/topup`, data),
+  
+  /**
+   * Gia hạn gói proxy
+   * @param {string} planId - ID gói proxy
+   * @param {Object} renewData - Thông tin gia hạn
+   * @returns {Promise}
+   */
+  renewPlan: (planId, renewData) => api.post(`/plans/${planId}/renew`, renewData),
+  
+  /**
+   * Lấy tất cả proxy (admin only)
+   * @param {number} page - Số trang
+   * @param {number} limit - Số lượng kết quả mỗi trang
+   * @returns {Promise}
+   */
+  getAllProxies: (page = 1, limit = 20) => api.get(`/admin/proxies?page=${page}&limit=${limit}`),
+  
+  /**
+   * Cập nhật thông tin proxy (admin only)
+   * @param {string} proxyId - ID proxy
    * @param {Object} proxyData - Thông tin cập nhật
    * @returns {Promise}
    */
-  updateProxy: (id, proxyData) => api.put(`/proxies/${id}`, proxyData),
+  updateProxy: (proxyId, proxyData) => api.put(`/admin/proxies/${proxyId}`, proxyData),
   
   /**
-   * Xóa proxy
-   * @param {string} id - ID proxy
+   * Xóa proxy (admin only)
+   * @param {string} proxyId - ID proxy
    * @returns {Promise}
    */
-  deleteProxy: (id) => api.delete(`/proxies/${id}`),
+  deleteProxy: (proxyId) => api.delete(`/admin/proxies/${proxyId}`),
   
   /**
-   * Quay vòng proxy
-   * @param {string} id - ID proxy
+   * Tạo proxy mới (admin only)
+   * @param {Object} proxyData - Thông tin proxy
    * @returns {Promise}
    */
-  rotateProxy: (id) => api.post(`/proxies/${id}/rotate`),
-  
-  /**
-   * Kiểm tra trạng thái proxy
-   * @param {string} id - ID proxy
-   * @returns {Promise}
-   */
-  checkProxy: (id) => api.get(`/proxies/${id}/check`),
-  
-  /**
-   * Nhập proxy hàng loạt
-   * @param {Object} proxyData - Dữ liệu proxy hoặc FormData
-   * @param {Object} config - Cấu hình request (nếu cần)
-   * @returns {Promise}
-   */
-  bulkImport: (proxyData, config) => api.post('/proxies/bulk', proxyData, config),
-  
-  /**
-   * Xóa proxy hàng loạt
-   * @param {Array} ids - Danh sách ID proxy cần xóa
-   * @returns {Promise}
-   */
-  bulkDelete: (ids) => api.post('/proxies/bulk-delete', { ids }),
-  
-  /**
-   * Cập nhật cài đặt proxy
-   * @param {string} id - ID proxy
-   * @param {Object} settings - Cài đặt mới
-   * @returns {Promise}
-   */
-  updateSettings: (id, settings) => api.patch(`/proxies/${id}/settings`, settings),
+  createProxy: (proxyData) => api.post('/admin/proxies', proxyData),
 };
 
-export default proxyAPI; 
+export default proxiesAPI; 

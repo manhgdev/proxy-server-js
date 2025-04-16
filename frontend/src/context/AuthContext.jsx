@@ -28,8 +28,8 @@ export const AuthProvider = ({ children }) => {
         try {
           // Gọi API để lấy thông tin user
           const response = await authAPI.me();
-          if (response.data && response.data.data && response.data.data.user) {
-            setUser(response.data.data.user);
+          if (response.data && response.data.status === 'success' && response.data.data) {
+            setUser(response.data.data);
           } else {
             // Fallback nếu API không trả về user
             const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(credentials);
       
       // Kiểm tra cấu trúc response từ server 
-      if (response.data && (response.data.data || response.data.status === 'success')) {
+      if (response.data && response.data.status === 'success' && response.data.data) {
         const userData = response.data.data.user;
         const accessToken = response.data.data.access_token;
         const refreshToken = response.data.data.refresh_token;

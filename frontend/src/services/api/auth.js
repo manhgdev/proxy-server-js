@@ -13,7 +13,7 @@ const authAPI = {
   
   /**
    * Đăng ký tài khoản mới
-   * @param {Object} userData - Thông tin người dùng mới
+   * @param {Object} userData - Thông tin người dùng {username, email, password, fullname, phone, reseller_code}
    * @returns {Promise}
    */
   register: (userData) => api.post('/auth/register', userData),
@@ -22,13 +22,14 @@ const authAPI = {
    * Lấy thông tin người dùng hiện tại
    * @returns {Promise}
    */
-  me: () => api.get('/auth/me'),
+  me: () => api.get('/users/profile'),
   
   /**
    * Làm mới token truy cập
+   * @param {string} refreshToken - Token làm mới
    * @returns {Promise}
    */
-  refreshToken: () => api.post('/auth/refresh-token'),
+  refreshToken: (refreshToken) => api.post('/auth/refresh-token', { refresh_token: refreshToken }),
   
   /**
    * Đăng xuất khỏi hệ thống
@@ -38,10 +39,10 @@ const authAPI = {
   
   /**
    * Thay đổi mật khẩu
-   * @param {Object} passwordData - Thông tin mật khẩu {oldPassword, newPassword, confirmPassword}
+   * @param {Object} passwordData - Thông tin mật khẩu {oldPassword, newPassword}
    * @returns {Promise}
    */
-  changePassword: (passwordData) => api.post('/auth/change-password', passwordData),
+  changePassword: (passwordData) => api.post('/users/change-password', passwordData),
   
   /**
    * Yêu cầu gửi email khôi phục mật khẩu
@@ -52,7 +53,7 @@ const authAPI = {
   
   /**
    * Đặt lại mật khẩu với token
-   * @param {Object} data - Thông tin đặt lại {token, newPassword, confirmPassword}
+   * @param {Object} data - Thông tin đặt lại {token, password}
    * @returns {Promise}
    */
   resetPassword: (data) => api.post('/auth/reset-password', data),
@@ -68,7 +69,7 @@ const authAPI = {
    * Tạo API key mới
    * @returns {Promise}
    */
-  generateApiKey: () => api.post('/auth/generate-api-key'),
+  generateApiKey: () => api.post('/users/api-key/generate'),
 };
 
 export default authAPI; 

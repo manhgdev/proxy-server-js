@@ -3,70 +3,56 @@ import api from './client';
 /**
  * API liên quan đến quản lý đơn hàng
  */
-const orderAPI = {
-  /**
-   * Lấy danh sách đơn hàng
-   * @param {Object} params - Tham số truy vấn
-   * @returns {Promise}
-   */
-  getOrders: (params) => api.get('/orders', { params }),
-  
-  /**
-   * Lấy danh sách đơn hàng của tôi
-   * @param {Object} params - Tham số truy vấn
-   * @returns {Promise}
-   */
-  getMyOrders: (params) => api.get('/orders/my', { params }),
-  
-  /**
-   * Lấy danh sách đơn hàng đại lý
-   * @param {Object} params - Tham số truy vấn
-   * @returns {Promise}
-   */
-  getResellerOrders: (params) => api.get('/orders/reseller', { params }),
-  
-  /**
-   * Lấy thông tin chi tiết đơn hàng
-   * @param {string} id - ID đơn hàng
-   * @returns {Promise}
-   */
-  getOrderById: (id) => api.get(`/orders/${id}`),
-  
-  /**
-   * Lấy chi tiết mục đơn hàng
-   * @param {string} id - ID đơn hàng
-   * @returns {Promise}
-   */
-  getOrderItems: (id) => api.get(`/orders/${id}/items`),
-  
+const ordersAPI = {
   /**
    * Tạo đơn hàng mới
-   * @param {Object} data - Thông tin đơn hàng
+   * @param {Object} orderData - Thông tin đơn hàng
    * @returns {Promise}
    */
-  createOrder: (data) => api.post('/orders', data),
+  createOrder: (orderData) => api.post('/orders', orderData),
   
   /**
-   * Cập nhật đơn hàng
-   * @param {string} id - ID đơn hàng
-   * @param {Object} data - Thông tin cập nhật
+   * Lấy lịch sử đơn hàng
+   * @param {number} page - Số trang
+   * @param {number} limit - Số lượng kết quả mỗi trang
    * @returns {Promise}
    */
-  updateOrder: (id, data) => api.put(`/orders/${id}`, data),
+  getOrders: (page = 1, limit = 10) => api.get(`/orders?page=${page}&limit=${limit}`),
   
   /**
-   * Hủy đơn hàng
-   * @param {string} id - ID đơn hàng
+   * Lấy chi tiết đơn hàng
+   * @param {string} orderId - ID đơn hàng
    * @returns {Promise}
    */
-  cancelOrder: (id) => api.post(`/orders/${id}/cancel`),
+  getOrderById: (orderId) => api.get(`/orders/${orderId}`),
   
   /**
-   * Xác nhận đơn hàng
-   * @param {string} id - ID đơn hàng
+   * Lấy danh sách đơn hàng (admin only)
+   * @param {number} page - Số trang
+   * @param {number} limit - Số lượng kết quả mỗi trang
+   * @param {Object} filters - Bộ lọc
    * @returns {Promise}
    */
-  confirmOrder: (id) => api.put(`/orders/${id}/confirm`),
+  getAllOrders: (page = 1, limit = 10, filters = {}) => {
+    const params = new URLSearchParams({ page, limit, ...filters });
+    return api.get(`/admin/orders?${params}`);
+  },
+  
+  /**
+   * Cập nhật trạng thái đơn hàng (admin only)
+   * @param {string} orderId - ID đơn hàng
+   * @param {Object} data - Dữ liệu cập nhật
+   * @returns {Promise}
+   */
+  updateOrderStatus: (orderId, data) => api.put(`/admin/orders/${orderId}/status`, data),
+  
+  /**
+   * Hủy đơn hàng (admin only)
+   * @param {string} orderId - ID đơn hàng
+   * @param {Object} data - Dữ liệu hủy đơn
+   * @returns {Promise}
+   */
+  cancelOrder: (orderId, data) => api.put(`/admin/orders/${orderId}/cancel`, data),
 };
 
-export default orderAPI; 
+export default ordersAPI; 
