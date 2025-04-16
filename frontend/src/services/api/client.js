@@ -25,28 +25,14 @@ api.interceptors.request.use(
 // Thêm interceptor cho response
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    // Xử lý token hết hạn
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        const response = await api.post('/auth/refresh-token', {
-          refresh_token: refreshToken,
-        });
-        const { access_token } = response.data.data;
-        localStorage.setItem('accessToken', access_token);
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        return api(originalRequest);
-      } catch (err) {
-        // Refresh token không hợp lệ, đăng xuất
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
+  (error) => {
+    // Xử lý token hết hạn - chỉ xóa thông tin đăng nhập
+    if (error.response?.status === 401) {
+      // Token hết hạn, xóa thông tin đăng nhập
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
     }
     return Promise.reject(error);
   }

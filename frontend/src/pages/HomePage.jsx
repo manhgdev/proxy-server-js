@@ -315,10 +315,16 @@ const HomePage = () => {
                 variant="contained" 
                 color="secondary" 
                 component={RouterLink}
-                to={isAuthenticated ? "/user/dashboard" : "/register"}
+                to={isAuthenticated ? 
+                  (user.user_level === 0 || user.role === 'admin' ? 
+                    "/admin/dashboard" : "/user/dashboard") 
+                  : "/register"}
                 size="large"
               >
-                {isAuthenticated ? "Quản lý Proxy" : "Dùng thử miễn phí"}
+                {isAuthenticated ? 
+                  (user.user_level === 0 || user.role === 'admin' ? 
+                    "Quản lý Admin" : "Quản lý Proxy") 
+                  : "Dùng thử miễn phí"}
               </Button>
             </Grid>
             <Grid item>

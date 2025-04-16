@@ -23,28 +23,49 @@ export const AuthProvider = ({ children }) => {
   // Lấy thông tin user từ localStorage khi component mount
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          // Không có token, logout
+          logout();
+          setLoading(false);
+          return;
+        }
+        
+        // Kiểm tra nếu có user trong localStorage
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        
+        // Đã có token, thử lấy thông tin user từ API
         try {
-          // Gọi API để lấy thông tin user
           const response = await authAPI.me();
+          
           if (response.data && response.data.status === 'success' && response.data.data) {
+            // Lấy user từ API thành công
             setUser(response.data.data);
+          } else if (storedUser) {
+            // API không trả về user nhưng có user trong localStorage
+            setUser(storedUser);
           } else {
-            // Fallback nếu API không trả về user
-            const storedUser = JSON.parse(localStorage.getItem('user'));
-            if (storedUser) {
-              setUser(storedUser);
-            } else {
-              logout();
-            }
+            // Không có thông tin user, logout
+            logout();
           }
         } catch (err) {
-          console.error('Failed to initialize auth:', err);
-          logout();
+          console.error('Error fetching user data:', err);
+          
+          // Nếu lỗi 401 Unauthorized, logout
+          if (err.response && err.response.status === 401) {
+            logout();
+          } 
+          // Các lỗi khác (mạng, server), sử dụng thông tin từ localStorage
+          else if (storedUser) {
+            setUser(storedUser);
+          } else {
+            logout();
+          }
         }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     initAuth();
