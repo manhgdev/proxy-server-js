@@ -3,7 +3,7 @@ import ProductPackage from '../../models/Package.js';
 import Alert from '../../models/Alerts.js';
 import mongoose from 'mongoose';
 import User from '../../models/User.js';
-import Transaction from '../../models/Transaction.js';
+import WalletTransaction from '../../models/WalletTransaction.js';
 
 export const getUserPlans = async (req, res) => {
   try {
@@ -167,7 +167,7 @@ export const renewPlan = async (req, res) => {
     await user.save();
     
     // Tạo giao dịch
-    await Transaction.create({
+    await WalletTransaction.create({
       user_id: user._id,
       amount: -renewalPrice,
       type: 'plan_renewal',

@@ -1,5 +1,4 @@
 import express from 'express';
-import { body, param, query } from 'express-validator';
 import {
   getAllUsers as getUsers,
   getUserById as getUser,
@@ -14,9 +13,16 @@ import {
 import { authenticateCombined, checkResourceAccess, authorize } from '../../middlewares/auth.js';
 import Order from '../../models/Order.js';
 import OrderItem from '../../models/OrderItem.js';
-import UserPlans from '../../models/UserPlans.js';
-import Package from '../../models/Package.js';
-import { getUserPlans as getUserPlansController } from './userPlansController.js';
+import {
+  getAllUsersValidator,
+  getUserByIdValidator,
+  createUserValidator,
+  updateUserValidator,
+  deleteUserValidator,
+  updateProfileValidator,
+  getUserOrdersValidator,
+  getUserOrderByIdValidator
+} from './userValidators.js';
 
 const router = express.Router();
 
@@ -25,14 +31,7 @@ router.get(
   '/',
   authenticateCombined,
   authorize(['manage_users', 'view_users']),
-  [
-    query('page').optional().isInt().withMessage('Page must be an integer'),
-    query('limit').optional().isInt().withMessage('Limit must be an integer'),
-    query('sort').optional().isString(),
-    query('search').optional().isString(),
-    query('status').optional().isString(),
-    query('user_level').optional().isInt().withMessage('User level must be an integer'),
-  ],
+  getAllUsersValidator,
   getUsers
 );
 
@@ -50,7 +49,7 @@ router.get(
   authenticateCombined,
   checkResourceAccess,
   authorize(['manage_users', 'view_users']),
-  param('id').isMongoId().withMessage('Invalid user ID format'),
+  getUserByIdValidator,
   getUser
 );
 
@@ -59,14 +58,7 @@ router.post(
   '/',
   authenticateCombined,
   authorize('manage_users'),
-  [
-    body('username').isString().isLength({ min: 4 }).withMessage('Username must be at least 4 characters'),
-    body('email').isEmail().withMessage('Invalid email format'),
-    body('password').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('fullname').isString().withMessage('Full name is required'),
-    body('user_level').isInt({ min: 0, max: 3 }).withMessage('User level must be between 0-3'),
-    body('active').optional().isBoolean()
-  ],
+  createUserValidator,
   createUser
 );
 
@@ -75,15 +67,7 @@ router.put(
   '/:id',
   authenticateCombined,
   authorize('manage_users'),
-  param('id').isMongoId().withMessage('Invalid user ID format'),
-  [
-    body('username').optional().isString().isLength({ min: 4 }).withMessage('Username must be at least 4 characters'),
-    body('email').optional().isEmail().withMessage('Invalid email format'),
-    body('password').optional().isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('fullname').optional().isString(),
-    body('user_level').optional().isInt({ min: 0, max: 3 }).withMessage('User level must be between 0-3'),
-    body('active').optional().isBoolean()
-  ],
+  updateUserValidator,
   updateUser
 );
 
@@ -92,7 +76,7 @@ router.delete(
   '/:id',
   authenticateCombined,
   authorize('manage_users'),
-  param('id').isMongoId().withMessage('Invalid user ID format'),
+  deleteUserValidator,
   deleteUser
 );
 
@@ -100,16 +84,7 @@ router.delete(
 router.put(
   '/profile/update',
   authenticateCombined,
-  [
-    body('fullname').optional().isString(),
-    body('phone').optional().isString(),
-    body('billing_info').optional().isObject(),
-    body('billing_info.address').optional().isString(),
-    body('billing_info.city').optional().isString(),
-    body('billing_info.country').optional().isString(),
-    body('billing_info.tax_id').optional().isString(),
-    body('billing_info.company').optional().isString()
-  ],
+  updateProfileValidator,
   updateUserProfile
 );
 
@@ -118,7 +93,7 @@ router.get(
   '/:id/plans',
   authenticateCombined,
   checkResourceAccess,
-  param('id').isMongoId().withMessage('Invalid user ID format'),
+  getUserByIdValidator,
   getUserPlans
 );
 
@@ -128,7 +103,7 @@ router.get(
   authenticateCombined,
   checkResourceAccess,
   authorize(['manage_users', 'view_users']),
-  param('id').isMongoId().withMessage('Invalid user ID format'),
+  getUserByIdValidator,
   getUserRoles
 );
 
@@ -138,7 +113,7 @@ router.get(
   authenticateCombined,
   checkResourceAccess,
   authorize(['manage_users', 'view_users']),
-  param('id').isMongoId().withMessage('Invalid user ID format'),
+  getUserByIdValidator,
   getUserPermissions
 );
 
@@ -175,7 +150,7 @@ router.post(
 );
 
 // Lấy danh sách đơn hàng của người dùng hiện tại
-router.get('/me/orders', authenticateCombined, async (req, res, next) => {
+router.get('/me/orders', authenticateCombined, getUserOrdersValidator, async (req, res, next) => {
   try {
     const userId = req.user.id;
     
@@ -209,7 +184,7 @@ router.get('/me/orders', authenticateCombined, async (req, res, next) => {
 });
 
 // Lấy chi tiết đơn hàng của người dùng hiện tại
-router.get('/me/orders/:orderId', authenticateCombined, async (req, res, next) => {
+router.get('/me/orders/:orderId', authenticateCombined, getUserOrderByIdValidator, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { orderId } = req.params;
@@ -240,8 +215,5 @@ router.get('/me/orders/:orderId', authenticateCombined, async (req, res, next) =
     next(error);
   }
 });
-
-// Dùng route đơn giản nhưng an toàn để lấy plans của người dùng hiện tại
-router.get('/plans/my', authenticateCombined, getUserPlansController);
 
 export default router; 

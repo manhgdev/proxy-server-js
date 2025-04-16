@@ -14,6 +14,7 @@ import proxyPoolsRoutes from './proxy-pools/proxyPoolsRoutes.js';
 
 const router = express.Router();
 
+// API endpoints có prefix '/api/v1'
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/packages', packageRoutes);
@@ -26,5 +27,16 @@ router.use('/reseller', resellerRoutes);
 router.use('/alerts', alertsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/proxy-pools', proxyPoolsRoutes);
+
+// Health check endpoint
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'API is running',
+    data: {
+      timestamp: new Date().toISOString()
+    }
+  });
+});
 
 export default router; 

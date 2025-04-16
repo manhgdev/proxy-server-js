@@ -17,7 +17,12 @@ export const getResellerProfile = async (req, res, next) => {
     const userId = req.user.id;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -58,7 +63,12 @@ export const updateResellerProfile = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -114,7 +124,12 @@ export const getResellerCustomers = async (req, res, next) => {
     const { page = 1, limit = 10, search } = req.query;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -184,7 +199,12 @@ export const createCustomer = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -271,7 +291,12 @@ export const getCommissionHistory = async (req, res, next) => {
     const { page = 1, limit = 10, start_date, end_date } = req.query;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -358,7 +383,12 @@ export const requestWithdrawal = async (req, res, next) => {
     }
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -420,7 +450,12 @@ export const getResellerStats = async (req, res, next) => {
     const userId = req.user.id;
     
     // Kiểm tra xem người dùng có phải là đại lý không
-    const isReseller = req.user.roles.some(role => role.name === 'Reseller');
+    const isReseller = req.user.is_reseller || 
+                       req.user.roles.some(role => 
+                         typeof role === 'string' 
+                           ? role.toLowerCase() === 'reseller' 
+                           : (role.name && role.name.toLowerCase() === 'reseller')
+                       );
     
     if (!isReseller) {
       throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
@@ -440,7 +475,7 @@ export const getResellerStats = async (req, res, next) => {
     const totalCommission = await WalletTransaction.aggregate([
       { 
         $match: { 
-          user_id: mongoose.Types.ObjectId(userId),
+          user_id: new mongoose.Types.ObjectId(userId),
           type: 'commission'
         } 
       },
@@ -460,7 +495,7 @@ export const getResellerStats = async (req, res, next) => {
     const recentCommission = await WalletTransaction.aggregate([
       { 
         $match: { 
-          user_id: mongoose.Types.ObjectId(userId),
+          user_id: new mongoose.Types.ObjectId(userId),
           type: 'commission',
           created_at: { $gte: thirtyDaysAgo }
         } 

@@ -198,4 +198,108 @@ export const deleteAllAlerts = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+/**
+ * Tạo mới cảnh báo
+ * @route POST /api/v1/alerts
+ * @access Đã đăng nhập
+ */
+export const createAlert = async (req, res, next) => {
+  try {
+    // Kiểm tra lỗi validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new BadRequestError('Dữ liệu không hợp lệ', errors.array());
+    }
+
+    const userId = req.user.id;
+    const { 
+      name, 
+      type, 
+      threshold, 
+      comparison, 
+      notification_method, 
+      active = true 
+    } = req.body;
+
+    // Tạo alert mới
+    const newAlert = new Alert({
+      user_id: userId,
+      name,
+      type,
+      threshold,
+      comparison,
+      notification_method,
+      active,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await newAlert.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo cảnh báo thành công',
+      data: newAlert
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Cập nhật cảnh báo
+ * @route PATCH /api/v1/alerts/:id
+ * @access Đã đăng nhập
+ */
+export const updateAlert = async (req, res, next) => {
+  try {
+    // Kiểm tra lỗi validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new BadRequestError('Dữ liệu không hợp lệ', errors.array());
+    }
+
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Kiểm tra ID hợp lệ
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new BadRequestError('ID cảnh báo không hợp lệ');
+    }
+    
+    // Tạo đối tượng chứa dữ liệu cần cập nhật
+    const updateData = {};
+    
+    // Chỉ cập nhật các trường được gửi lên
+    const allowedFields = ['name', 'type', 'threshold', 'comparison', 'notification_method', 'active'];
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+    
+    // Cập nhật thời gian chỉnh sửa
+    updateData.updated_at = new Date();
+    
+    // Tìm và cập nhật cảnh báo
+    const updatedAlert = await Alert.findOneAndUpdate(
+      { _id: id, user_id: userId },
+      { $set: updateData },
+      { new: true }
+    );
+    
+    if (!updatedAlert) {
+      throw new NotFoundError('Cảnh báo không tồn tại hoặc không có quyền cập nhật');
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật cảnh báo thành công',
+      data: updatedAlert
+    });
+  } catch (error) {
+    next(error);
+  }
 }; 

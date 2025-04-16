@@ -104,20 +104,23 @@ export const authorize = (roles = []) => {
       if (
         (allowedRoles.includes('admin') && req.user.is_admin) ||
         (allowedRoles.includes('manager') && req.user.is_manager) ||
-        (allowedRoles.includes('reseller') && req.user.is_reseller)
+        (allowedRoles.includes('reseller') && (req.user.is_reseller || req.user.roles.includes('Reseller')))
       ) {
         return next();
       }
       
       // Kiểm tra roles chính xác
       if (req.user.roles) {
-        const hasRole = req.user.roles.some(role => allowedRoles.includes(role));
+        const userRoles = req.user.roles.map(role => role.toLowerCase());
+        const hasRole = userRoles.some(role => 
+          allowedRoles.map(r => r.toLowerCase()).includes(role)
+        );
         if (hasRole) {
           return next();
         }
       }
       
-      throw new ForbiddenError('Bạn không có quyền truy cập');
+      throw new ForbiddenError('Bạn không có quyền truy cập tài nguyên này');
     } catch (error) {
       next(error);
     }

@@ -1,96 +1,78 @@
 import mongoose from 'mongoose';
 
+const priceTierSchema = new mongoose.Schema({
+  min_quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  price_per_unit: {
+    type: Number,
+    required: true,
+    min: 0
+  }
+}, { _id: false });
+
 const packageSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    unique: true,
     trim: true
   },
   description: {
     type: String,
-    trim: true
+    required: true
   },
   type: {
     type: String,
     required: true,
-    enum: ['datacenter', 'residential', 'mobile', 'isp'],
-    default: 'datacenter'
+    enum: ['static', 'rotating', 'bandwidth', 'mobile']
   },
-  pricing_model: {
-    type: String, 
-    enum: ['subscription', 'bandwidth', 'one_time'],
+  category: {
+    type: String,
     required: true,
-    default: 'subscription'
+    enum: ['datacenter', 'residential', 'mobile']
+  },
+  protocol: {
+    type: String,
+    required: true,
+    enum: ['http', 'https', 'socks5']
+  },
+  is_rotating: {
+    type: Boolean,
+    default: false
+  },
+  is_bandwidth: {
+    type: Boolean,
+    default: false
+  },
+  duration_days: {
+    type: Number,
+    required: true,
+    min: 1
   },
   price: {
     type: Number,
     required: true,
     min: 0
   },
-  discount_price: {
-    type: Number,
-    min: 0
+  price_tiers: [priceTierSchema],
+  allowed_countries: {
+    type: [String],
+    default: []
   },
-  duration_days: {
-    type: Number,
-    min: 1,
-    default: 30
-  },
-  bandwidth_gb: {
-    type: Number,
-    min: 0,
-    default: 0
-  },
-  proxy_count: {
-    type: Number,
-    required: true,
-    min: 1
+  allowed_isps: {
+    type: [String],
+    default: []
   },
   features: {
     type: [String],
     default: []
   },
-  countries: {
-    type: [String],
-    default: []
-  },
-  regions: {
-    type: [String],
-    default: []
-  },
-  rotation_interval: {
-    type: Number, // in minutes, 0 for static proxies
-    default: 0
-  },
-  is_rotating: {
-    type: Boolean,
-    default: false
-  },
-  category: {
-    type: String,
-    enum: ['basic', 'standard', 'premium', 'enterprise'],
-    default: 'standard'
-  },
-  available_stock: {
-    type: Number,
-    min: 0,
-    default: 0
-  },
-  is_active: {
+  active: {
     type: Boolean,
     default: true
-  },
-  is_featured: {
-    type: Boolean,
-    default: false
-  },
-  display_order: {
-    type: Number,
-    default: 0
-  },
-  metadata: {
-    type: Object,
-    default: {}
   },
   created_at: {
     type: Date,
@@ -102,56 +84,17 @@ const packageSchema = new mongoose.Schema({
   }
 }, { versionKey: false });
 
-// Indexes for better query performance
-packageSchema.index({ type: 1 });
-packageSchema.index({ pricing_model: 1 });
-packageSchema.index({ is_active: 1, category: 1 });
-packageSchema.index({ is_featured: 1, display_order: 1 });
-
-// Pre-save middleware to update timestamps
+// Tự động cập nhật thời gian cập nhật
 packageSchema.pre('save', function(next) {
-  this.updated_at = Date.now();
+  this.updated_at = new Date();
   next();
 });
 
-// Virtual for calculating discounted price
-packageSchema.virtual('final_price').get(function() {
-  return this.discount_price && this.discount_price < this.price 
-    ? this.discount_price 
-    : this.price;
+packageSchema.pre('findOneAndUpdate', function(next) {
+  this.set({ updated_at: new Date() });
+  next();
 });
 
-// Static method to find active packages by type
-packageSchema.statics.findActiveByType = function(type) {
-  return this.find({ 
-    type, 
-    is_active: true 
-  }).sort({ display_order: 1, price: 1 });
-};
-
-// Static method to find featured packages
-packageSchema.statics.findFeatured = function() {
-  return this.find({ 
-    is_active: true,
-    is_featured: true 
-  }).sort({ display_order: 1 });
-};
-
-// Static method to update stock
-packageSchema.statics.updateStock = async function(packageId, quantity) {
-  const pkg = await this.findById(packageId);
-  if (!pkg) {
-    throw new Error('Package not found');
-  }
-  
-  pkg.available_stock = Math.max(0, pkg.available_stock - quantity);
-  return pkg.save();
-};
-
-// Ensure JSON response includes virtual fields
-packageSchema.set('toJSON', { virtuals: true });
-packageSchema.set('toObject', { virtuals: true });
-
-const Package = mongoose.model('Package', packageSchema);
+const Package = mongoose.model('Package', packageSchema, 'productPackages');
 
 export default Package;

@@ -11,8 +11,7 @@ dotenv.config();
 import config from '../config/index.js';
 import logger from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
-import { getUserPlans } from './api/users/userPlansController.js';
-import { authenticateCombined } from './middlewares/auth.js';
+import apiRoutes from './api/index.js';
 
 // Create Express app
 const app = express();
@@ -48,27 +47,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Import routes
-import authRoutes from './api/auth/authRoutes.js';
-import userRoutes from './api/users/userRoutes.js';
-import packageRoutes from './api/packages/packageRoutes.js';
-import orderRoutes from './api/orders/orderRoutes.js';
-import proxyRoutes from './api/proxy/proxyRoutes.js';
-import walletRoutes from './api/wallet/walletRoutes.js';
-import planRoutes from './api/plans/planRoutes.js';
-import adminRoutes from './api/admin/adminRoutes.js';
-import resellerRoutes from './api/reseller/resellerRoutes.js';
+// Thêm API health check endpoint để đảm bảo tương thích
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'API is running',
+    data: {
+      timestamp: new Date().toISOString()
+    }
+  });
+});
 
-// API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/packages', packageRoutes);
-app.use('/api/v1/orders', orderRoutes);
-app.use('/api/v1/proxies', proxyRoutes);
-app.use('/api/v1/wallet', walletRoutes);
-app.use('/api/v1/plans', planRoutes);
-app.use('/api/v1/admin', adminRoutes);
-app.use('/api/v1/reseller', resellerRoutes);
+// API Routes - Gọn và tập trung
+app.use('/api/v1', apiRoutes);
 
 // Handle 404 errors
 app.use(notFoundHandler);

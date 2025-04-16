@@ -247,10 +247,10 @@ const seedRolePermissions = async (db) => {
 // Seed admin user
 const seedAdminUser = async (db) => {
   try {
-    const passwordHash = await bcrypt.hash('manhdz', 10);
+    const passwordHash = await bcrypt.hash('123456', 10);
     
     const adminUser = {
-      username: "manhgdev",
+      username: "admin",
       password_hash: passwordHash,
       email: "admin@proxy-server.com",
       fullname: "System Administrator",
@@ -419,6 +419,72 @@ const seedProductPackages = async (db) => {
         allowed_countries: ["US", "VN", "JP"],
         allowed_isps: ["All ISPs"],
         features: ["high_anonymity", "global_access"],
+        active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      // Datacenter Premium
+      {
+        name: "Datacenter Static - Premium",
+        description: "10 premium dedicated datacenter proxies with high-speed connections",
+        type: "static",
+        category: "datacenter",
+        protocol: "https",
+        is_rotating: false,
+        is_bandwidth: false,
+        duration_days: 30,
+        price: 400000,
+        price_tiers: [
+          { min_quantity: 1, price_per_unit: 400000 },
+          { min_quantity: 3, price_per_unit: 370000 },
+          { min_quantity: 5, price_per_unit: 350000 }
+        ],
+        allowed_countries: ["US", "GB", "DE", "JP", "SG"],
+        allowed_isps: ["Amazon", "Google", "Microsoft", "DigitalOcean"],
+        features: ["dedicated_ip", "unlimited_bandwidth", "high_speed", "ssl_support"],
+        active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      // Residential Rotating
+      {
+        name: "Residential Rotating - Standard",
+        description: "Access to rotating residential proxy pool with 1GB bandwidth",
+        type: "rotating",
+        category: "residential",
+        protocol: "http",
+        is_rotating: true,
+        is_bandwidth: true,
+        duration_days: 30,
+        price: 300000,
+        price_tiers: [
+          { min_quantity: 1, price_per_unit: 300000 },
+          { min_quantity: 2, price_per_unit: 280000 }
+        ],
+        allowed_countries: ["US", "VN", "JP", "KR", "SG", "TH"],
+        allowed_isps: ["All ISPs"],
+        features: ["high_anonymity", "global_access", "auto_rotation"],
+        active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      // Mobile Proxies
+      {
+        name: "Mobile Proxies - Basic",
+        description: "5 mobile proxy connections with 4G/5G support",
+        type: "mobile",
+        category: "mobile",
+        protocol: "http",
+        is_rotating: true,
+        is_bandwidth: true,
+        duration_days: 30,
+        price: 600000,
+        price_tiers: [
+          { min_quantity: 1, price_per_unit: 600000 }
+        ],
+        allowed_countries: ["VN", "TH", "MY", "ID"],
+        allowed_isps: ["Viettel", "Mobifone", "Vinaphone", "AIS", "DTAC"],
+        features: ["mobile_network", "4g_support", "high_anonymity"],
         active: true,
         created_at: new Date(),
         updated_at: new Date()

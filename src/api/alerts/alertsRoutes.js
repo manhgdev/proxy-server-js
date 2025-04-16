@@ -1,57 +1,45 @@
 import express from 'express';
-import { param, query } from 'express-validator';
 import {
-  getAlerts,
+  getUserAlerts,
   markAlertAsRead,
   markAllAlertsAsRead,
   deleteAlert,
-  deleteAllAlerts
+  deleteAllAlerts,
+  createAlert,
+  updateAlert
 } from './alertsController.js';
 import { authenticateCombined } from '../../middlewares/auth.js';
+import { 
+  getAlertsValidator, 
+  createAlertValidator, 
+  updateAlertValidator, 
+  deleteAlertValidator 
+} from './alertsValidators.js';
 
 const router = express.Router();
 
-// Get all alerts for user
-router.get(
-  '/',
-  authenticateCombined,
-  [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
-    query('read').optional().isBoolean().withMessage('Read status must be a boolean'),
-    query('type').optional().isString()
-  ],
-  getAlerts
-);
+// Tất cả routes đều yêu cầu authentication
+router.use(authenticateCombined);
 
-// Mark alert as read
-router.patch(
-  '/:id/read',
-  authenticateCombined,
-  param('id').isMongoId().withMessage('Invalid alert ID format'),
-  markAlertAsRead
-);
+// Lấy danh sách alerts của user
+router.get('/', getAlertsValidator, getUserAlerts);
 
-// Mark all alerts as read
-router.patch(
-  '/read-all',
-  authenticateCombined,
-  markAllAlertsAsRead
-);
+// Tạo mới alert
+router.post('/', createAlertValidator, createAlert);
 
-// Delete an alert
-router.delete(
-  '/:id',
-  authenticateCombined,
-  param('id').isMongoId().withMessage('Invalid alert ID format'),
-  deleteAlert
-);
+// Cập nhật alert
+router.patch('/:id', updateAlertValidator, updateAlert);
 
-// Delete all alerts
-router.delete(
-  '/delete-all',
-  authenticateCombined,
-  deleteAllAlerts
-);
+// Xóa alert
+router.delete('/:id', deleteAlertValidator, deleteAlert);
+
+// Đánh dấu alert là đã đọc
+router.patch('/:id/read', deleteAlertValidator, markAlertAsRead);
+
+// Đánh dấu tất cả alert là đã đọc
+router.patch('/read-all', markAllAlertsAsRead);
+
+// Xóa tất cả alerts
+router.delete('/delete-all', deleteAllAlerts);
 
 export default router; 

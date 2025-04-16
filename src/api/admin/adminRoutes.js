@@ -33,6 +33,9 @@ import WalletTransaction from '../../models/WalletTransaction.js';
 import Wallet from '../../models/Wallet.js';
 import User from '../../models/User.js';
 import mongoose from 'mongoose';
+import Role from '../../models/Role.js';
+import UserRole from '../../models/UserRole.js';
+import ResellerDetails from '../../models/ResellerDetails.js';
 
 const router = express.Router();
 
@@ -319,6 +322,56 @@ router.post(
         message: 'Error crediting wallet',
         error: error.message
       });
+    }
+  }
+);
+
+// Thêm endpoint để xem danh sách đại lý
+router.get(
+  '/resellers',
+  authenticateCombined,
+  authorize(['admin']),
+  async (req, res, next) => {
+    try {
+      const resellerRole = await Role.findOne({ name: "Reseller" });
+      
+      if (!resellerRole) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Vai trò đại lý không tồn tại'
+        });
+      }
+      
+      const userRoles = await UserRole.find({ role_id: resellerRole._id });
+      const resellerIds = userRoles.map(ur => ur.user_id);
+      
+      const resellers = await User.find({ _id: { $in: resellerIds } })
+        .select('_id username email fullname phone active created_at');
+        
+      // Lấy thêm thông tin chi tiết về đại lý nếu có
+      const resellerDetails = await ResellerDetails.find({ 
+        user_id: { $in: resellerIds } 
+      });
+      
+      const resultData = resellers.map(reseller => {
+        const details = resellerDetails.find(
+          rd => rd.user_id.toString() === reseller._id.toString()
+        );
+        
+        return {
+          ...reseller.toObject(),
+          commission_rate: details ? details.commission_rate : null,
+          downline_count: details ? details.downline_count : 0,
+          total_sales: details ? details.total_sales : 0
+        };
+      });
+      
+      return res.status(200).json({
+        status: 'success',
+        data: resultData
+      });
+    } catch (error) {
+      next(error);
     }
   }
 );

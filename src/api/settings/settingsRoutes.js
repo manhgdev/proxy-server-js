@@ -1,58 +1,93 @@
 import express from 'express';
-import { body } from 'express-validator';
-import {
-  getUserSettings,
-  updateUserSettings,
-  resetUserSettings
-} from './settingsController.js';
-import { authenticate } from '../../middlewares/auth.js';
+import { authenticateCombined } from '../../middlewares/auth.js';
+import { validateRequest } from '../../middlewares/validator.js';
+import { updateUserSettingsValidator } from './settingsValidators.js';
+import Settings from '../../models/Settings.js';
+import User from '../../models/User.js';
 
 const router = express.Router();
 
-// Tất cả routes đều yêu cầu authentication
-router.use(authenticate);
+router.get('/', authenticateCombined, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const settings = await Settings.findOne({ userId });
+    
+    if (!settings) {
+      return res.status(404).json({ error: 'Không tìm thấy cài đặt người dùng' });
+    }
+    
+    return res.json(settings);
+  } catch (error) {
+    console.error('Lỗi khi lấy cài đặt người dùng:', error);
+    return res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
+  }
+});
 
-// Lấy cài đặt người dùng
-router.get('/', getUserSettings);
+router.put('/', authenticateCombined, updateUserSettingsValidator, validateRequest, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    let settings = await Settings.findOne({ userId });
+    
+    if (!settings) {
+      return res.status(404).json({ error: 'Không tìm thấy cài đặt người dùng' });
+    }
+    
+    const updateData = { ...req.body };
+    
+    if (req.body.notification_prefs) {
+      updateData.notification_prefs = {
+        ...settings.notification_prefs,
+        ...req.body.notification_prefs
+      };
+    }
+    
+    settings = await Settings.findOneAndUpdate(
+      { userId },
+      { $set: updateData },
+      { new: true }
+    );
+    
+    return res.json(settings);
+  } catch (error) {
+    console.error('Lỗi khi cập nhật cài đặt người dùng:', error);
+    return res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
+  }
+});
 
-// Cập nhật cài đặt người dùng
-router.patch(
-  '/',
-  [
-    body('theme')
-      .optional()
-      .isIn(['light', 'dark', 'system'])
-      .withMessage('Chủ đề không hợp lệ, chỉ chấp nhận: light, dark, system'),
+router.post('/reset', authenticateCombined, async (req, res) => {
+  try {
+    const userId = req.user.id;
     
-    body('language')
-      .optional()
-      .isIn(['en', 'vi'])
-      .withMessage('Ngôn ngữ không hợp lệ, chỉ chấp nhận: en, vi'),
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
     
-    body('notification_prefs.email')
-      .optional()
-      .isBoolean()
-      .withMessage('notification_prefs.email phải là giá trị boolean'),
+    const defaultSettings = {
+      userId,
+      theme: 'system',
+      language: 'en',
+      notification_prefs: {
+        email: true,
+        dashboard: true,
+        proxy_expiry: true,
+        balance_low: true
+      }
+    };
     
-    body('notification_prefs.dashboard')
-      .optional()
-      .isBoolean()
-      .withMessage('notification_prefs.dashboard phải là giá trị boolean'),
+    const settings = await Settings.findOneAndUpdate(
+      { userId },
+      { $set: defaultSettings },
+      { new: true, upsert: true }
+    );
     
-    body('notification_prefs.proxy_expiry')
-      .optional()
-      .isBoolean()
-      .withMessage('notification_prefs.proxy_expiry phải là giá trị boolean'),
-    
-    body('notification_prefs.balance_low')
-      .optional()
-      .isBoolean()
-      .withMessage('notification_prefs.balance_low phải là giá trị boolean')
-  ],
-  updateUserSettings
-);
-
-// Reset cài đặt về mặc định
-router.post('/reset', resetUserSettings);
+    return res.json(settings);
+  } catch (error) {
+    console.error('Lỗi khi đặt lại cài đặt người dùng:', error);
+    return res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
+  }
+});
 
 export default router; 

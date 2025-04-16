@@ -1,15 +1,23 @@
 import express from 'express';
-import { body, param, query } from 'express-validator';
 import {
-  getAllPlans,
-  getMyPlans,
-  getResellerPlans,
-  getPlanById,
+  getUserPlans as getAllPlans,
+  getUserPlans as getMyPlans,
+  getUserPlans as getResellerPlans,
+  getUserPlanById as getPlanById,
   toggleAutoRenew,
-  cancelPlan,
-  renewPlan
-} from './planController.js';
+  renewPlan,
+  toggleAutoRenew as cancelPlan
+} from './plansController.js';
 import { authenticateCombined, checkResourceAccess, authorize } from '../../middlewares/auth.js';
+import {
+  getAllPlansValidator,
+  getMyPlansValidator,
+  getResellerPlansValidator,
+  getPlanByIdValidator,
+  toggleAutoRenewValidator,
+  cancelPlanValidator,
+  renewPlanValidator
+} from './planValidators.js';
 
 const router = express.Router();
 
@@ -18,25 +26,15 @@ router.get(
   '/',
   authenticateCombined,
   authorize(['manage_orders', 'view_orders']),
-  [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
-    query('status').optional().isString().isIn(['active', 'expired', 'cancelled']).withMessage('Invalid status'),
-    query('sort').optional().isString()
-  ],
+  getAllPlansValidator,
   getAllPlans
 );
 
 // Get my plans - Đặt route này trước các route có tham số
 router.get(
-  '/user-plans',
+  '/my',
   authenticateCombined,
-  [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
-    query('status').optional().isString().isIn(['active', 'expired', 'cancelled']).withMessage('Invalid status'),
-    query('sort').optional().isString()
-  ],
+  getMyPlansValidator,
   getMyPlans
 );
 
@@ -45,12 +43,7 @@ router.get(
   '/reseller',
   authenticateCombined,
   authorize('reseller'),
-  [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1-100'),
-    query('status').optional().isString().isIn(['active', 'expired', 'cancelled']).withMessage('Invalid status'),
-    query('sort').optional().isString()
-  ],
+  getResellerPlansValidator,
   getResellerPlans
 );
 
@@ -59,7 +52,7 @@ router.get(
   '/:id',
   authenticateCombined,
   checkResourceAccess,
-  param('id').isMongoId().withMessage('Invalid plan ID format'),
+  getPlanByIdValidator,
   getPlanById
 );
 
@@ -68,7 +61,7 @@ router.post(
   '/:id/toggle-auto-renew',
   authenticateCombined,
   checkResourceAccess,
-  param('id').isMongoId().withMessage('Invalid plan ID format'),
+  toggleAutoRenewValidator,
   toggleAutoRenew
 );
 
@@ -77,7 +70,7 @@ router.post(
   '/:id/cancel',
   authenticateCombined,
   checkResourceAccess,
-  param('id').isMongoId().withMessage('Invalid plan ID format'),
+  cancelPlanValidator,
   cancelPlan
 );
 
@@ -86,7 +79,7 @@ router.post(
   '/:id/renew',
   authenticateCombined,
   checkResourceAccess,
-  param('id').isMongoId().withMessage('Invalid plan ID format'),
+  renewPlanValidator,
   renewPlan
 );
 
